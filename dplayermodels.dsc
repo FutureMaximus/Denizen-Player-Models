@@ -25,10 +25,11 @@
 #
 #Uses elements from dmodels by mcmonkey https://github.com/mcmonkeyprojects/DenizenModels and requires the bbmodel converter by dmodels for the animations.
 #
-#For player emotes made by other people https://mcmodels.net/?product_cat=&post_type=product&s=Emote (Must be for the mccosmetics plugin not IA)
+#For player emotes made by other people https://mcmodels.net/?product_cat=&post_type=product&s=Emote (Must be for the mccosmetics plugin not IA).
 #
-#Player models allows the use of player model animations useful for emotes or cutscenes as a per player showing task is available
+#Player models allows the use of player model animations useful for emotes or cutscenes as a per player showing task is available.
 #
+#There is an emote command you can use /emote wave and you can modify each emote in the emote configuration below.
 ##How to get started:
 
 ##Notice: If you have the mccosmetics core shader file you can skip this part
@@ -48,8 +49,15 @@ pmodel_config:
   type: data
   #message config for emote command
   config:
+    #loads the animations on server start
+    load_on_start: true
+    #whether it shows the player's display name when doing an emote
+    show_display_name: true
+    #prefix for emote command
     prefix: "[Denizen Player Models]"
+    #prefix color
     prefix_color: "white"
+    #message color
     message_color: "white"
     no_emote: " Specify an emote"
     no_exist: " That emote does not exist!"
@@ -62,8 +70,8 @@ pmodel_config:
 
   #emotes configuration
   #INFO:
-  # speed: 0.5 "Speed allows you to move during the emote at a set speed setting this to 0 prevents that."
-  # turn_rate: 1.2 "Determine how fast you will turn while moving in the emote higher values result in a faster turn rate."
+  # speed: 0.2 "Speed allows you to move during the emote at a set speed setting this to 0 prevents that."
+  # turn_rate: 6.0 "Determine how fast you will turn while moving in the emote higher values result in a faster turn rate setting this to 0 prevents turning."
   # perm: emote.wave "Perm allows you to set a permission for this emote to disable this set it to 'none'."
   #here you can set the emotes for players and permissions required for them
   emotes:
@@ -96,7 +104,7 @@ pmodel_config:
 #Example: /emote wave /emote my_animation
 pmodel_emote_command:
   type: command
-  debug: true
+  debug: false
   name: emote
   usage: /emote
   aliases:
@@ -110,8 +118,6 @@ pmodel_emote_command:
   - if <[a_1].equals[n]>:
     - narrate <&color[<[script.prefix_color]>]><[script.prefix]><&color[<[script.message_color]>]><[script.no_emote]>
   - else:
-    - if <player.has_flag[emote_ent]> && <player.flag[emote_ent].is_spawned>:
-      - run pmodels_remove_model def.root_entity:<player.flag[emote_ent]>
     - if !<player.is_op>:
       #emote list for non op players
       - define script_emotes <script[pmodel_config].data_key[emotes]>
@@ -121,10 +127,28 @@ pmodel_emote_command:
         - narrate <&color[<[script.prefix_color]>]><[script.prefix]><&color[<[script.message_color]>]><[script.no_exist]>
         - stop
       - if !<player.has_permission[<[perm]>]>:
-        - narrate <&color[<[script.prefix_color]>]><[script.prefix]><&color[<[script.message_color]>]><[script.no_exist]>
+        - narrate <&color[<[script.prefix_color]>]><[script.prefix]><&color[<[script.message_color]>]><[script.no_perm]>
         - stop
-    #will run anyways if player is op for debug
+    #should the player have the player model spawned already it will move to the emote instead
+    - if <player.has_flag[emote_ent]> && <player.flag[emote_ent].is_spawned>:
+      - run pmodel_emote_task_passive def:<player>|<[a_1]>
+      - stop
     - run pmodel_emote_task def:<player>|<[a_1]>
+
+#command for ops only
+pmodel_base_command:
+  type: command
+  debug: false
+  name: denizenplayermodel
+  usage: /denizenplayermodel
+  aliases:
+  - pmodel
+  description: Pmodel command
+  permission: op.op
+  script:
+  - if <context.args.get[1]> == reload && <player.is_op>:
+    - ~run pmodels_load_animation
+    - narrate "[Denizen Player Models] Reloaded animations."
 
 #############################
 ##API Usage
@@ -150,12 +174,12 @@ pmodel_emote_command:
 ###############################
 # Todo:
 # - Add third person perspective for emote command
+# - Add a way to determine if the player has the slim skin or not
 # - Ensure third person camera does not go inside blocks
-# - Add slime to prevent players getting inside the model
 # - Add support for external bones like a sword or car
+# - Add animation to animation transitions and transition to normal state when ending emote
 # - Add support for hand/offhand items
-
-##Don't touch below here unless you know what your doing
+##Try not to touch the stuff below here unless you know what your doing ;).
 
 pmodel_emote_task:
   type: task
@@ -171,11 +195,13 @@ pmodel_emote_task:
   - run pmodels_spawn_model def.model_name:player_model_template_norm def.location:<player.location> def.player:<[player]> save:spawned
   - define root <entry[spawned].created_queue.determination.first>
   - if <[player].is_player>:
+    - adjust <[player]> hide_from_players
+    - cast INVISIBILITY <[player]> duration:100000000s hide_particles no_ambient no_icon
     - flag <[player]> emote:<[emote]>
     - flag <[player]> emote_ent:<[root]>
     - flag <[player]> emote_yaw:<[player].location.yaw>
     #vehicle
-    - spawn pmodel_vehicle_stand <[player].location.above[1.5].with_yaw[<[player].location.yaw>]> save:vehicle
+    - spawn pmodel_vehicle_stand <[player].location.above[0.5].with_yaw[<[player].location.yaw>]> save:vehicle
     - define vehicle <entry[vehicle].spawned_entity>
     - flag <[player]> emote_vehicle:<[vehicle]>
     #mount
@@ -184,7 +210,60 @@ pmodel_emote_task:
     - flag <[mount]> emote
     - flag <[player]> emote_mount:<[mount]>
     - mount <[player]>|<[mount]>
+    #collision box to ensure players dont go inside model
+    - spawn pmodel_collision_box <[player].location.with_y[-72]> save:box
+    - define box <entry[box].spawned_entity>
+    - invisible <[box]> state:true
+    - teleport <[box]> <[player].location>
+    - flag <[player]> pmodel_collide_box:<[box]>
+    #display name showing
+    - define script <script[pmodel_config].data_key[config]>
+    - define check <[script].get[show_display_name]>
+    - if <[script].get[show_display_name].equals[true]>:
+      - spawn armor_stand[custom_name_visible=true;custom_name=<[player].display_name>;visible=false;gravity=false;marker=true] <[vehicle].location.above[1]> save:display
+      - flag <[player]> emote_display:<entry[display].spawned_entity>
   - run pmodels_animate def.root_entity:<[root]> def.animation:<[emote]>
+
+#should the player model be spawned already in the emote
+pmodel_emote_task_passive:
+  type: task
+  definitions: player|emote
+  script:
+  - define npc <npc[<[player]>].if_null[n]>
+  - define player <player[<[player]>].if_null[n]>
+  - if <[player].equals[n]> && <[npc].equals[n]>:
+    - debug error "[Denizen Player Models] Must specify a player."
+    - stop
+  - if !<[npc].equals[n]> && <[player].equals[n]>:
+    - define player <[npc]>
+  - flag <[player]> emote:<[emote]>
+  - define root <[player].flag[emote_ent]>
+  - run pmodels_animate def.root_entity:<[root]> def.animation:<[emote]>
+
+pmodel_emote_task_remove:
+  type: task
+  definitions: player
+  script:
+  - define player <player[<[player]>].if_null[n]>
+  - if <[player].equals[n]>:
+    - define player <player>
+  - else:
+    - run pmodels_remove_model def.root_entity:<[player].flag[emote_ent]>
+    - mount cancel <[player]>
+    - teleport <[player]> <[player].flag[emote_vehicle].location>
+    - remove <[player].flag[emote_vehicle]>
+    - if <[player].has_flag[emote_display]>:
+      - remove <[player].flag[emote_display]>
+      - flag <[player]> emote_display:!
+    - remove <[player].flag[pmodel_collide_box]>
+    - remove <[player].flag[emote_mount]>
+    - flag <[player]> pmodel_collide_box:!
+    - flag <[player]> emote_vehicle:!
+    - flag <[player]> emote_mount:!
+    - flag <[player]> emote:!
+    - adjust <[player]> show_to_players
+    - wait 2t
+    - cast INVISIBILITY remove <[player]>
 
 pmodel_emote_vehicle_task:
     type: task
@@ -284,7 +363,7 @@ pmodel_emote_vehicle_task:
     #forward
     - if <[f]> > 0:
       #collision detection
-      - define b_1 <[vehicle].location.with_pitch[0].above[2].forward[1.2]>
+      - define b_1 <[vehicle].location.with_pitch[0].above[2].forward[1]>
       - define b_list <list[<[b_1]>]>
       - define collision <proc[pmodel_collision_detect].context[<[b_list]>]>
       #falling
@@ -335,13 +414,16 @@ pmodel_emote_vehicle_task:
           - adjust <[vehicle]> velocity:<[vehicle].location.with_pitch[45].rotate_yaw[180].direction.vector.mul[<[vel]>]>
     #idle
     - else:
-      #falling (reason for being here is to ensure even where this is an external event it will fall assuming there is no block below)
+      #falling (reason for being here is to ensure should there be an external event it will fall assuming there is no block below)
       - define l_1 <[vehicle].location.with_pitch[0].below[0.1]>
       - define l_1 <list[<[l_1]>]>
       - define fall <proc[pmodel_falling].context[<[l_1]>]>
       - if <[fall]> != fall:
         - teleport <[vehicle]> <[vehicle].location.with_yaw[<[emote_yaw]>]>
     - teleport <[mount]> <[vehicle].location.with_yaw[<player.location.yaw>].with_pitch[<player.location.pitch>].relative[<location[0,0,-6].rotate_around_z[<player.location.yaw.to_radians>]>]>
+    - teleport <player.flag[pmodel_collide_box]> <[vehicle].location.with_yaw[<[emote_yaw]>]>
+    - if <player.has_flag[emote_display]>:
+      - teleport <player.flag[emote_display]> <[vehicle].location.above[1.8]>
     - teleport <[emote_ent]> <[vehicle].location.with_pitch[0]>
 
 pmodel_up_block:
@@ -398,6 +480,16 @@ pmodel_vehicle_stand:
         visible: false
         is_small: false
 
+pmodel_collision_box:
+    type: entity
+    debug: false
+    entity_type: slime
+    mechanisms:
+      size: 3
+      has_ai: false
+      invulnerable: true
+      silent: true
+
 pmodel_mount_stand:
     type: entity
     debug: false
@@ -412,7 +504,8 @@ pmodels_load_event:
     type: world
     events:
       after server start:
-      - ~run pmodels_load_animation
+      - if <script[pmodel_config].data_key[config].get[load_on_start].equals[true]>:
+        - ~run pmodels_load_animation
 
 pmodels_load_animation:
     type: task
@@ -429,6 +522,7 @@ pmodels_load_animation:
     - define animation_files <server.list_files[player_models/animations]>
     - if <[animation_files].is_empty>:
       - debug error "[Denizen Player Models] There are no animations in "player_models/animations""
+      - narrate "[Denizen Player Models] <red>No animations found in playermodels/animations"
       - stop
     #gather animations from the animation files
     - foreach <[animation_files]> as:anim_file:
@@ -460,7 +554,7 @@ pmodels_load_animation:
 pmodels_spawn_model:
     type: task
     debug: false
-    definitions: model_name|location|player
+    definitions: model_name|location|player|show_to
     script:
     - define npc <npc[<[player]>].if_null[n]>
     - define player <player[<[player]>].if_null[n]>
@@ -477,6 +571,8 @@ pmodels_spawn_model:
     - define yaw_mod <[location].yaw.add[180].to_radians>
     - spawn pmodel_part_stand <[location]> save:root
     - flag <entry[root].spawned_entity> pmodel_model_id:<[model_name]>
+    #if show_to is being utilized determine if it is a player
+    - define show_to <player[<[show_to]>].if_null[n]>
     - foreach <server.flag[pmodels_data.model_<[model_name]>]> key:id as:part:
         - if !<[part.item].exists>:
             - foreach next
@@ -487,7 +583,11 @@ pmodels_spawn_model:
         - spawn pmodel_part_stand[armor_pose=[right_arm=<[pose]>]] <[center].add[<[offset].rotate_around_y[<[yaw_mod].mul[-1]>]>]> save:spawned
         - adjust <item[<[part.item]>]> skull_skin:<[player].skull_skin> save:item
         - define part.item <entry[item].result>
-        - equip <entry[spawned].spawned_entity> right_arm:<[part.item]>
+        #fakeequip if show_to is being used
+        - if !<[show_to].equals[n]>:
+          - fakeequip <entry[spawned].spawned_entity> right_arm:<[part.item]> for:<[show_to]>
+        - else:
+          - equip <entry[spawned].spawned_entity> right_arm:<[part.item]>
         #when going too far from the player model the textures get messed up this fixes that issue
         - adjust <entry[spawned].spawned_entity> tracking_range:256
         - flag <entry[spawned].spawned_entity> pmodel_def_pose:<[pose]>
@@ -683,6 +783,11 @@ pmodels_emote_events:
         after player steers entity flagged:emote:
         - ratelimit <player> 1t
         - ~run pmodel_emote_vehicle_task def:<context.forward>|<context.sideways>
+        after player exits vehicle flagged:emote:
+        - ratelimit <player> 1t
+        - run pmodel_emote_task_remove def:<player>
+        on player quits:
+        - run pmodel_emote_task_remove def:<player>
 
 pmodels_animator:
     type: world
