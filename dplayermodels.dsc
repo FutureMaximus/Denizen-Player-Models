@@ -39,7 +39,6 @@
 
 #####################
 
-
 ##Emote Command:
 #Example: /emote wave /emote my_animation
 pmodel_emote_command:
@@ -84,13 +83,20 @@ pmodel_config:
     no_exist: " That emote does not exist!"
     no_perm: " You do not seem to have access to that emote!"
 
-  #for players who are not op
-  #here you can set the emotes for player and permissions required for them
+  #emotes configuration
+  #INFO:
+  # speed: 0.5 "Speed allows you to move during the emote setting this to 0 prevents that"
+  # rotate: true/false "rotate determines if your player model will rotate to your direction during the emote or not"
+  #here you can set the emotes for players and permissions required for them
   emotes:
     yes:
       perm: emote.yes
+      speed: 0.0
+      rotate: true
     no:
       perm: emote.no
+      speed: 0.0
+      rotate: true
 
 #############################
 ##API Usage
