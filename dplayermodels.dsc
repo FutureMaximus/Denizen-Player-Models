@@ -3,7 +3,7 @@
 # |
 # | D e n i z e n   P l a y e r   M o d e l s
 # |
-# | Emotes in Minecraft!
+# | Animated players in Java Minecraft!
 # |
 # +---------------------------
 ##Player Models
