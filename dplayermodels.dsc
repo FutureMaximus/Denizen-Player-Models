@@ -1,7 +1,7 @@
 ###############################
 # +---------------------------
 # |
-# | D e n i z en   P l a y e r   M o d e l s
+# | D e n i z e n   P l a y e r   M o d e l s
 # |
 # | Emotes in Minecraft!
 # |
@@ -12,7 +12,7 @@
 # @updated 2022/06/03
 # @denizen-build REL-1771
 # @script-version 1.0
-##NOTE: This will not work on minecraft versions below 1.17 and will not work with any other core shader file it must be the one provided by mccosmetics or here.
+##NOTE: This will not work on minecraft versions below 1.17 and will not work with any other rendertype_entity_translucent core shader file it must be the one provided by mccosmetics or here.
 ##Description:
 
 # Denizen Player Models allows you to take the texture of any player or npc and animate them with a model of the player!
@@ -39,10 +39,12 @@
 
 #####################
 
+
 ##Emote Command:
 #Example: /emote wave /emote my_animation
-player_model_emote_command:
+pmodel_emote_command:
   type: command
+  debug: true
   name: emote
   usage: /emote
   aliases:
@@ -50,7 +52,45 @@ player_model_emote_command:
   description: Emote command for player models that plays an animation
   #permission: op.op
   script:
-  - define hello
+  - define a_1 <context.args.get[1].if_null[n]>
+  - define script <script[pmodel_config].data_key[config]>
+  #arg 1 null
+  - if <[a_1].equals[n]>:
+    - narrate <&color[<[script.prefix_color]>]><[script.prefix]><&color[<[script.message_color]>]><[script.no_emote]>
+  - else:
+    - if !<player.is_op>:
+      #emote list for non op players
+      - define script_emotes <script[pmodel_config].data_key[emotes]>
+      #check permission for emote
+      - define perm <[script_emotes.<[a_1]>.perm].if_null[n]>
+      - if <[perm].equals[n]>:
+        - narrate <&color[<[script.prefix_color]>]><[script.prefix]><&color[<[script.message_color]>]><[script.no_exist]>
+        - stop
+      - if !<player.has_permission[<[perm]>]>:
+        - narrate <&color[<[script.prefix_color]>]><[script.prefix]><&color[<[script.message_color]>]><[script.no_exist]>
+        - stop
+    #will run anyways if player is op for debug
+    - run pmodel_emote_task def:<player>|<[a_1]>
+
+#configuration for emotes and setting permissions for them
+pmodel_config:
+  type: data
+  #message config for emote command
+  config:
+    prefix: "[Denizen Player Models]"
+    prefix_color: "white"
+    message_color: "white"
+    no_emote: " Specify an emote"
+    no_exist: " That emote does not exist!"
+    no_perm: " You do not seem to have access to that emote!"
+
+  #for players who are not op
+  #here you can set the emotes for player and permissions required for them
+  emotes:
+    yes:
+      perm: emote.yes
+    no:
+      perm: emote.no
 
 #############################
 ##API Usage
@@ -73,20 +113,21 @@ player_model_emote_command:
 # - run pmodels_remove_model def.root_entity:<[root]>
 ###############################
 # Todo:
+# - Add third person perspective for emote command
 # - Add support for external bones like a sword or car
 # - Add support for hand/offhand items
 
-pmodel_test_usage:
+pmodel_emote_task:
   type: task
-  definitions: player
+  definitions: player|emote
   script:
-  - define player <[player].if_null[n]>
+  - define player <player[<[player].if_null[n]>]>
+  - define script <script[pmodel_config].data_key[config]>
   - if <[player].equals[n]>:
     - define player <player>
   - run pmodels_spawn_model def.model_name:player_model_template_norm def.location:<player.location> def.player:<[player]> save:spawned
   - define root <entry[spawned].created_queue.determination.first>
-  - wait 3s
-  - run pmodels_animate def.root_entity:<[root]> def.animation:backflip
+  - run pmodels_animate def.root_entity:<[root]> def.animation:<[emote]>
 
 pmodel_part_stand:
     type: entity
@@ -114,7 +155,7 @@ pmodels_load_animation:
     - define filename data/models/player_model_template_norm.pmodel.yml
     - define animation_file player_models/animations/<[animation_name]>.dmodel.yml
     - if !<server.has_file[<[filename]>]>:
-        - debug error "[DModels] Invalid animation <[animation_name]>, file does not exist: <[filename]>, cannot load"
+        - debug error "[Denizen Player Models] Invalid animation <[animation_name]>, file does not exist: <[animation_name]>, cannot load"
         - stop
     - ~yaml id:<[yamlid]> load:<[filename]>
     - ~yaml id:<[animation_name]> load:<[animation_file]>
@@ -133,7 +174,7 @@ pmodels_load_animation:
                 - define raw_animators.<[id]> <map[frames=<list>]>
         - define anim.animators <[raw_animators]>
         - define raw_animations.<[name]> <[anim]>
-    #new path for texture on player model (doing it in the template file causes the head to be underneath the model a big no no)
+    #new path for texture on player model (doing it in the template file caused the head to be underneath the model a big no no)
     - define load_order <list[player_root|head|hip|waist|chest|right_arm|right_forearm|left_arm|left_forearm|right_leg|right_foreleg|left_leg|left_foreleg]>
     - foreach <[load_order]> as:tex_name:
         - foreach <[raw_parts]> key:id as:part:
