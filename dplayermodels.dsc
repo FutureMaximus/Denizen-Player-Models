@@ -75,6 +75,18 @@ pmodel_config:
   # perm: emote.wave "Perm allows you to set a permission for this emote to disable this set it to 'none'."
   #here you can set the emotes for players and permissions required for them
   emotes:
+    hop:
+      speed: 0.09
+      turn_rate: 7.0
+      perm: emote.hop
+    crawl:
+      speed: 0.05
+      turn_rate: 7.0
+      perm: emote.crawl
+    slowmorun:
+      speed: 0.1
+      turn_rate: 7.0
+      perm: emote.slowmo
     moonwalk:
       speed: 0.1
       turn_rate: 6.0
@@ -135,7 +147,7 @@ pmodel_emote_command:
       - stop
     - run pmodel_emote_task def:<player>|<[a_1]>
 
-#command for ops only
+#command for ops only (here you can reload the animations)
 pmodel_base_command:
   type: command
   debug: false
@@ -147,16 +159,17 @@ pmodel_base_command:
   permission: op.op
   script:
   - if <context.args.get[1]> == reload && <player.is_op>:
-    - ~run pmodels_load_animation
+    - ~run pmodels_load_animation def:classic
+    - ~run pmodels_load_animation def:slim
     - narrate "[Denizen Player Models] Reloaded animations."
 
 #############################
 ##API Usage
 # # To spawn the player model
-# - run pmodels_spawn_model def.model_name:player_model_template_norm def.location:<player.location> def.player:<player[FutureMaximus]> save:spawned
+# - run pmodels_spawn_model def.location:<player.location> def.player:<player[FutureMaximus]> save:spawned
 # - define root <entry[spawned].created_queue.determination.first>
 # # To spawn the player model that only shows for one player (useful for cutscenes)
-# - run pmodels_spawn_model def.model_name:player_model def.location:<player.location> def.player:<player[FutureMaximus> def.show_to:<player[FutureMaximus]> save:spawned
+# - run pmodels_spawn_model def.location:<player.location> def.player:<player[FutureMaximus> def.show_to:<player[FutureMaximus]> save:spawned
 # - define root <entry[spawned].created_queue.determination.first>
 # # To move the whole player model
 # - teleport <[root]> <player.location>
@@ -192,7 +205,7 @@ pmodel_emote_task:
     - stop
   - if !<[npc].equals[n]> && <[player].equals[n]>:
     - define player <[npc]>
-  - run pmodels_spawn_model def.model_name:player_model_template_norm def.location:<player.location> def.player:<[player]> save:spawned
+  - run pmodels_spawn_model def.location:<player.location> def.player:<[player]> save:spawned
   - define root <entry[spawned].created_queue.determination.first>
   - if <[player].is_player>:
     - adjust <[player]> hide_from_players
@@ -276,7 +289,7 @@ pmodel_emote_vehicle_task:
     - define emote <player.flag[emote]>
     - define emote_ent <player.flag[emote_ent]>
     - define script <script[pmodel_config].data_key[emotes]>
-    #abs in case you for some reason set it to negative
+    #abs in case you for some reason set it to negative...weirdo
     - define speed <[script.<[emote]>.speed].abs.if_null[0.0]>
     - define turn_rate <[script.<[emote]>.turn_rate].abs.if_null[0.0]>
     #f = forward/back s = left or right
@@ -363,7 +376,7 @@ pmodel_emote_vehicle_task:
     #forward
     - if <[f]> > 0:
       #collision detection
-      - define b_1 <[vehicle].location.with_pitch[0].above[2].forward[1]>
+      - define b_1 <[vehicle].location.with_pitch[0].above[2.2].forward[1]>
       - define b_list <list[<[b_1]>]>
       - define collision <proc[pmodel_collision_detect].context[<[b_list]>]>
       #falling
@@ -445,6 +458,7 @@ pmodel_collision_detect:
      - foreach <[loc]>:
         - if <[value].material> != <material[air]>:
             - determine stop
+            - stop
         - else:
             - determine go
 
@@ -505,14 +519,40 @@ pmodels_load_event:
     events:
       after server start:
       - if <script[pmodel_config].data_key[config].get[load_on_start].equals[true]>:
-        - ~run pmodels_load_animation
+        - ~run pmodels_load_animation def:classic
+        - ~run pmodels_load_animation def:slim
+
+pmodels_skin_type:
+    type: procedure
+    debug: true
+    definitions: player
+    script:
+    - define npc <npc[<[player]>].if_null[n]>
+    - define player <player[<[player]>].if_null[n]>
+    - if !<[player].equals[n]>:
+      - if <[player].is_online>:
+        - determine <util.parse_yaml[<player[<[player]>].skin_blob.before[;].base64_to_binary.utf8_decode>].deep_get[textures.skin.metadata.model]||classic>
+      - else:
+        - determine null
+    - else if !<[npc].equals[n]>:
+      - determine <util.parse_yaml[<npc[<[npc]>].skin_blob.before[;].base64_to_binary.utf8_decode>].deep_get[textures.skin.metadata.model]||classic>
+    - else:
+      - determine null
 
 pmodels_load_animation:
     type: task
+    definitions: type
     debug: false
     script:
     - define yamlid pmodels_player_template
-    - define filename data/models/player_model_template_norm.pmodel.yml
+    - choose <[type]>:
+      - case classic:
+        - define filename player_models/templates/player_model_template_norm.pmodel.yml
+      - case slim:
+        - define filename player_models/templates/player_model_template_slim.pmodel.yml
+      - default:
+        - debug error "[Denizen Player Models] Must specify classic or slim model type."
+        - stop
     - ~yaml id:<[yamlid]> load:<[filename]>
     - define order <yaml[<[yamlid]>].read[order]>
     - define parts <yaml[<[yamlid]>].read[models]>
@@ -548,13 +588,18 @@ pmodels_load_animation:
               - define new_list.<[id]> <[parts.<[id]>]>
               - foreach stop
     - define raw_parts <[new_list]>
-    - flag server pmodels_data.model_player_model_template_norm:<[raw_parts]>
-    - flag server pmodels_data.animations_player_model_template_norm:<[raw_animations]>
+    - choose <[type]>:
+      - case classic:
+        - flag server pmodels_data.model_player_model_template_norm:<[raw_parts]>
+        - flag server pmodels_data.animations_player_model_template_norm:<[raw_animations]>
+      - case slim:
+        - flag server pmodels_data.model_player_model_template_slim:<[raw_parts]>
+        - flag server pmodels_data.animations_player_model_template_slim:<[raw_animations]>
 
 pmodels_spawn_model:
     type: task
     debug: false
-    definitions: model_name|location|player|show_to
+    definitions: location|player|show_to
     script:
     - define npc <npc[<[player]>].if_null[n]>
     - define player <player[<[player]>].if_null[n]>
@@ -563,6 +608,19 @@ pmodels_spawn_model:
       - stop
     - if !<[npc].equals[n]> && <[player].equals[n]>:
       - define player <[npc]>
+    - if <[player].is_npc>:
+      - define skin_type <proc[pmodels_skin_type].context[<[player]>]>
+    - else:
+      - define skin_type <[player].flag[pmodels_skin_type]>
+    - choose <[skin_type]>:
+      - case classic:
+        - announce CLASSIC
+        - define model_name player_model_template_norm
+      - case slim:
+        - define model_name player_model_template_slim
+      - default:
+        - debug error "[Denizen Player Models] Something went wrong in pmodels_spawn_model invalid skin type."
+        - stop
     - if !<server.has_flag[pmodels_data.model_<[model_name]>]>:
         - debug error "[Denizen Player Models] <red>Cannot spawn model <[model_name]>, model not loaded"
         - stop
@@ -803,3 +861,8 @@ pmodels_animator:
             - if <[root].is_spawned||false>:
                 - run pmodels_move_to_frame def.root_entity:<[root]> def.animation:<[root].flag[pmodels_animation_id]> def.timespot:<[root].flag[pmodels_anim_time].div[20]>
                 - flag <[root]> pmodels_anim_time:++
+        #skin type
+        after player joins:
+        - wait 1t
+        - define skin_type <proc[pmodels_skin_type].context[<player>]>
+        - flag <player> pmodels_skin_type:<[skin_type]>
