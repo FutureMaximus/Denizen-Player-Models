@@ -1,0 +1,170 @@
+{
+  "order": [
+    "778fa89c-759a-8884-89d9-238c555d2dc1",
+    "9dc65952-10a9-876f-bd47-d6a7e9ec6183",
+    "7e8426f1-08b2-81a2-7703-cb76ff5e7003",
+    "5ef5d225-d5ae-6787-8838-b75ccb7a7a81",
+    "e297aef6-7dfd-f100-2e7c-ab113699b922",
+    "a0c01522-9040-7533-fa11-f6a45d3d96ac",
+    "34097e46-c233-c03c-d8b9-aee154c9946f",
+    "bfc2f156-b48b-dd08-1b9e-777d8ada16b2",
+    "b3135254-0351-3462-2479-e6a3286c89ff",
+    "cf1618da-24d8-aab8-eebc-128815c02d35",
+    "1a9070b5-b8b6-b955-9f31-54f9625f8f3d",
+    "c6d9e946-1d10-482d-14b1-0766027adba8",
+    "1b5cc202-c09e-faa0-5057-eb4ae60bf336"
+  ],
+  "models": {
+    "34097e46-c233-c03c-d8b9-aee154c9946f": {
+      "item": "arrow[custom_model_data=1031]",
+      "name": "head",
+      "origin": "0,22.5,0",
+      "rotation": "0,0,0",
+      "parent": "a0c01522-9040-7533-fa11-f6a45d3d96ac"
+    },
+    "cf1618da-24d8-aab8-eebc-128815c02d35": {
+      "item": "arrow[custom_model_data=1032]",
+      "name": "right_forearm",
+      "origin": "5.625,16.875,0",
+      "rotation": "0,0,0",
+      "parent": "bfc2f156-b48b-dd08-1b9e-777d8ada16b2"
+    },
+    "bfc2f156-b48b-dd08-1b9e-777d8ada16b2": {
+      "item": "arrow[custom_model_data=1033]",
+      "name": "right_arm",
+      "origin": "5,21,0",
+      "rotation": "0,0,0",
+      "parent": "a0c01522-9040-7533-fa11-f6a45d3d96ac"
+    },
+    "1a9070b5-b8b6-b955-9f31-54f9625f8f3d": {
+      "item": "arrow[custom_model_data=1034]",
+      "name": "left_forearm",
+      "origin": "-5.625,16.875,0",
+      "rotation": "0,0,0",
+      "parent": "b3135254-0351-3462-2479-e6a3286c89ff"
+    },
+    "b3135254-0351-3462-2479-e6a3286c89ff": {
+      "item": "arrow[custom_model_data=1035]",
+      "name": "left_arm",
+      "origin": "-5,21,0",
+      "rotation": "0,0,0",
+      "parent": "a0c01522-9040-7533-fa11-f6a45d3d96ac"
+    },
+    "a0c01522-9040-7533-fa11-f6a45d3d96ac": {
+      "item": "arrow[custom_model_data=1036]",
+      "name": "chest",
+      "origin": "0,18.75,0",
+      "rotation": "0,0,0",
+      "parent": "e297aef6-7dfd-f100-2e7c-ab113699b922"
+    },
+    "e297aef6-7dfd-f100-2e7c-ab113699b922": {
+      "item": "arrow[custom_model_data=1037]",
+      "name": "waist",
+      "origin": "0,15,0",
+      "rotation": "0,0,0",
+      "parent": "9dc65952-10a9-876f-bd47-d6a7e9ec6183"
+    },
+    "9dc65952-10a9-876f-bd47-d6a7e9ec6183": {
+      "item": "arrow[custom_model_data=1038]",
+      "name": "hip",
+      "origin": "0,11.25,0",
+      "rotation": "0,0,0",
+      "parent": "778fa89c-759a-8884-89d9-238c555d2dc1"
+    },
+    "c6d9e946-1d10-482d-14b1-0766027adba8": {
+      "item": "arrow[custom_model_data=1039]",
+      "name": "right_foreleg",
+      "origin": "1.875,5.625,0",
+      "rotation": "0,0,0",
+      "parent": "7e8426f1-08b2-81a2-7703-cb76ff5e7003"
+    },
+    "7e8426f1-08b2-81a2-7703-cb76ff5e7003": {
+      "item": "arrow[custom_model_data=1040]",
+      "name": "right_leg",
+      "origin": "1.875,11.25,0",
+      "rotation": "0,0,0",
+      "parent": "778fa89c-759a-8884-89d9-238c555d2dc1"
+    },
+    "1b5cc202-c09e-faa0-5057-eb4ae60bf336": {
+      "item": "arrow[custom_model_data=1041]",
+      "name": "left_foreleg",
+      "origin": "-1.875,5.625,0",
+      "rotation": "0,0,0",
+      "parent": "5ef5d225-d5ae-6787-8838-b75ccb7a7a81"
+    },
+    "5ef5d225-d5ae-6787-8838-b75ccb7a7a81": {
+      "item": "arrow[custom_model_data=1042]",
+      "name": "left_leg",
+      "origin": "-1.875,11.25,0",
+      "rotation": "0,0,0",
+      "parent": "778fa89c-759a-8884-89d9-238c555d2dc1"
+    },
+    "778fa89c-759a-8884-89d9-238c555d2dc1": {
+      "name": "player_root",
+      "origin": "0,0,0",
+      "rotation": "0,0,0",
+      "parent": "none"
+    }
+  },
+  "animations": {
+    "head_move": {
+      "loop": "ONCE",
+      "override": false,
+      "anim_time_update": "",
+      "blend_weight": "",
+      "length": 3.0,
+      "animators": {
+        "a0c01522-9040-7533-fa11-f6a45d3d96ac": {
+          "frames": [
+            {
+              "data": "0,0,0",
+              "channel": "ROTATION",
+              "time": 0.0,
+              "interpolation": "LINEAR"
+            },
+            {
+              "data": "1.0035643198967394,0,0",
+              "channel": "ROTATION",
+              "time": 1.0,
+              "interpolation": "LINEAR"
+            },
+            {
+              "data": "0,0,0",
+              "channel": "ROTATION",
+              "time": 2.0,
+              "interpolation": "LINEAR"
+            }
+          ]
+        },
+        "34097e46-c233-c03c-d8b9-aee154c9946f": {
+          "frames": [
+            {
+              "data": "0.6981317007977318,0,0",
+              "channel": "ROTATION",
+              "time": 2.0,
+              "interpolation": "LINEAR"
+            },
+            {
+              "data": "0,0,0",
+              "channel": "ROTATION",
+              "time": 0.0,
+              "interpolation": "LINEAR"
+            },
+            {
+              "data": "-0.6108652381980153,0,0",
+              "channel": "ROTATION",
+              "time": 1.0,
+              "interpolation": "LINEAR"
+            },
+            {
+              "data": "0,0,0",
+              "channel": "ROTATION",
+              "time": 3.0,
+              "interpolation": "LINEAR"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
