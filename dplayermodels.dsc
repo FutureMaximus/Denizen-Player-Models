@@ -55,7 +55,7 @@
 #example usage in cmd:
 #cd C:/Program Files/DenizenModelsConverter
 #DenizenModelsConverter.exe make_pack my_animations.bbmodel resource_pack player_animations/not_needed player_animations/not_needed
-#(use it on an item you don't use to avoid conflict with resource pack)
+#(use it on an item you don't use to avoid conflict with your resource pack)
 
 #####################
 ##Config:
@@ -367,7 +367,7 @@ pmodels_move_to_frame:
         - foreach <[root_entity].flag[pmodel_anim_part.<[part_id]>]||<list>> as:ent:
             #15.98 offset for player model
             - teleport <[ent]> <[center].add[<[new_pos].div[15.98].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
-            #will need to wait for release build before implementing these
+            #will need to wait for latest release build before implementing these
             #- adjust <[ent]> reset_client_location
             - define radian_rot <[new_rot].xyz.split[,]>
             - define pose <[radian_rot].get[1]>,<[radian_rot].get[2]>,<[radian_rot].get[3]>
