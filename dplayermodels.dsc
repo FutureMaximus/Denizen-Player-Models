@@ -15,7 +15,7 @@
 # @script-version 1.0
 # @Github https://github.com/FutureMaximus/Denizen-Player-Models
 ##NOTICE: This will not work on minecraft versions below 1.17 and will not work with any other
-##rendertype_entity_translucent core shader file it must be the one provided by mccosmetics or here.
+##rendertype_entity_translucent core shader files it must be the one provided by mccosmetics or here.
 ##Description:
 
 # Denizen Player Models allows you to take the texture of any player or npc and animate them with a model of the player!
@@ -42,6 +42,8 @@
 #, "minecraft/shaders/core/rendertype_entity_translucent.fsh" and "minecraft/shaders/core/rendertype_entity_translucent.json"
 
 #Put the player_animator folder inside your resource pack assets "resource_pack/assets/player_animator"
+
+# TODO: Add info on implementing player head custom model data file
 ##########################
 
 #Put the player model template files in "Denizen/player_models/templates/player_model_template_norm.yml" and "Denizen/player_models/templates/player_model_template_slim.yml"
@@ -77,11 +79,10 @@ pmodel_config:
     no_exist: " That emote does not exist!"
     #no permission for that emote
     no_perm: " You do not seem to have access to that emote!"
-  general:
     #max_range: 8 "Maximum range the third person camera can go."
-    max_range: 6
+    cam_max_range: 8
     #min_range: 2 "Minimum range the third person camera can go"
-    min_range: 2
+    cam_min_range: 2
 
   #emotes configuration
   #INFO:
@@ -90,6 +91,10 @@ pmodel_config:
   # perm: emote.wave "Perm allows you to set a permission for this emote to disable this set it to 'none'."
   #here you can set the emotes for players and permissions required for them
   emotes:
+    chicken:
+      speed: 0.2
+      turn_rate: 8.0
+      perm: emote.chicken
     hop:
       speed: 0.09
       turn_rate: 7.0
@@ -98,13 +103,17 @@ pmodel_config:
       speed: 0.05
       turn_rate: 7.0
       perm: emote.crawl
+    mime:
+      speed: 0.1
+      turn_rate: 20.0
+      perm: emote.mime
     disco:
-      speed: 0.0
-      turn_rate: 10.0
+      speed: 0.7
+      turn_rate: 20.0
       perm: emote.disco
     slowmorun:
-      speed: 0.1
-      turn_rate: 7.0
+      speed: 0.3
+      turn_rate: 8.0
       perm: emote.slowmo
     moonwalk:
       speed: 0.1
@@ -115,7 +124,7 @@ pmodel_config:
       turn_rate: 4.0
       perm: emote.sad
     superman:
-      speed: 0.1
+      speed: 0.3
       turn_rate: 7.0
       perm: emote.superman
     yes:
@@ -128,8 +137,12 @@ pmodel_config:
       perm: emote.no
     sit:
       speed: 0.0
-      turn_rate: 0.0
+      turn_rate: 20.0
       perm: emote.sit
+    meditate:
+      speed: 0.1
+      turn_rate: 7.0
+      perm: emote.meditate
 
 ##Emote Command:
 #Example: /emote wave /emote my_animation
@@ -178,6 +191,7 @@ pmodel_base_command:
   permission: op.op
   script:
   - if <context.args.get[1]> == reload && <player.is_op>:
+    - reload
     - ~run pmodels_load_animation def:classic
     - ~run pmodels_load_animation def:slim
     - narrate "[Denizen Player Models] Reloaded animations."
@@ -205,15 +219,20 @@ pmodel_base_command:
 # - run pmodel_emote_task def.player:<player[FutureMaximus]> def.emote:wave
 # # To begin an emote without respawning the player model
 # - run pmodel_emote_task_passive def.player:<player[FutureMaximus]> def.emote:wave
+# # Useful flags:
+# # To prevent the player from moving the player model
+# - flag <player> pmodel_no_move
 ###############################
-# Todo:
+# TODO:
+# FUCK!!!!!!!
 # - Add third person perspective for emote command
-# - Ensure third person camera does not go inside blocks
+# - Ensure third person camera does not go inside blocks - How?
 # - Add support for external bones like a sword or car
+# - Add support for hand/offhand items in select emotes the player chooses to have them on
 # - Add animation to animation transitions and transition to normal state when ending emote
-# - Add support for hand/offhand items
 ##Try not to touch the stuff below here unless you know what your doing ;).
 
+##Emote tasks ################################
 pmodel_emote_task:
   type: task
   debug: false
@@ -234,6 +253,10 @@ pmodel_emote_task:
     - flag <[player]> emote:<[emote]>
     - flag <[player]> emote_ent:<[root]>
     - flag <[player]> emote_yaw:<[player].location.yaw>
+    #raycast ent
+    - spawn bat[has_ai=false;visible=true;gravity=false;invulnerable=true] <[player].location.above[0.5].with_yaw[<[player].location.yaw>]> save:ray
+    - define ray_ent <entry[ray].spawned_entity>
+    - flag <[player]> pmodel_ray_ent:<[ray_ent]>
     #vehicle
     - spawn pmodel_vehicle_stand <[player].location.above[0.5].with_yaw[<[player].location.yaw>]> save:vehicle
     - define vehicle <entry[vehicle].spawned_entity>
@@ -306,161 +329,190 @@ pmodel_emote_vehicle_task:
     debug: false
     definitions: f|s
     script:
-    - define vehicle <player.flag[emote_vehicle]>
-    - define mount <player.flag[emote_mount]>
-    - define emote_yaw <player.flag[emote_yaw]>
-    - define emote <player.flag[emote]>
-    - define emote_ent <player.flag[emote_ent]>
-    - define script <script[pmodel_config].data_key[emotes]>
-    #abs in case you for some reason set it to negative...weirdo
-    - define speed <[script.<[emote]>.speed].abs.if_null[0.0]>
-    - define turn_rate <[script.<[emote]>.turn_rate].abs.if_null[0.0]>
-    #f = forward/back s = left or right
-    #left or right movement
-    - if <[s]> != 0:
+    - if !<player.has_flag[pmodel_no_move]>:
+      - define vehicle <player.flag[emote_vehicle]>
+      - define mount <player.flag[emote_mount]>
+      - define emote_yaw <player.flag[emote_yaw]>
+      - define emote <player.flag[emote]>
+      - define emote_ent <player.flag[emote_ent]>
+      - define script <script[pmodel_config].data_key[emotes]>
+      #abs in case you for some reason set it to negative...weirdo
+      - define speed <[script.<[emote]>.speed].abs.if_null[0.0]>
+      - define turn_rate <[script.<[emote]>.turn_rate].abs.if_null[0.0]>
+      #f = forward/back s = left or right
+      #left or right movement
+      - if !<player.has_flag[emote_yaw]>:
+        - define yaw <[mount].location.yaw>
+        - flag <player> emote_yaw:<[yaw]>
+        - define emote_yaw <[yaw]>
+      - if <[s]> != 0:
+        #forward
+        - if <[f]> > 0:
+          #right
+          - if <[s]> < 0:
+              - define yaw <player.flag[emote_yaw].add[<[turn_rate]>]>
+              - if <[yaw]> > 359:
+                - define yaw 1
+              - flag <player> emote_yaw:<[yaw]>
+              - define emote_yaw <[yaw]>
+          #left
+          - else if <[s]> > 0:
+              - define yaw <player.flag[emote_yaw].sub[<[turn_rate]>]>
+              - if <[yaw]> < 2:
+                - define yaw 360
+              - flag <player> emote_yaw:<[yaw]>
+              - define emote_yaw <[yaw]>
+        #backward
+        - else if <[f]> < 0:
+          #right
+          - if <[s]> > 0:
+              - define yaw <player.flag[emote_yaw].add[<[turn_rate]>]>
+              - if <[yaw]> > 359:
+                - define yaw 1
+              - flag <player> emote_yaw:<[yaw]>
+              - define emote_yaw <[yaw]>
+          #left
+          - else if <[s]> < 0:
+              - define yaw <player.flag[emote_yaw].sub[<[turn_rate]>]>
+              - if <[yaw]> < 2:
+                - define yaw 360
+              - flag <player> emote_yaw:<[yaw]>
+              - define emote_yaw <[yaw]>
+        #idle
+        - else:
+          #right
+          - if <[s]> < 0:
+            - if !<player.has_flag[emote_yaw]>:
+              - define yaw <[mount].location.yaw>
+              - flag <player> emote_yaw:<[yaw]>
+              - define emote_yaw <[yaw]>
+            - else:
+              - define yaw <player.flag[emote_yaw].add[<[turn_rate]>]>
+              - if <[yaw]> > 359:
+                - define yaw 1
+              - flag <player> emote_yaw:<[yaw]>
+              - define emote_yaw <[yaw]>
+          #left
+          - else if <[s]> > 0:
+            - if !<player.has_flag[emote_yaw]>:
+              - define yaw <[mount].location.yaw>
+              - flag <player> emote_yaw:<[yaw]>
+              - define emote_yaw <[yaw]>
+            - else:
+              - define yaw <player.flag[emote_yaw].sub[<[turn_rate]>]>
+              - if <[yaw]> < 2:
+                - define yaw 360
+              - flag <player> emote_yaw:<[yaw]>
+              - define emote_yaw <[yaw]>
       #forward
       - if <[f]> > 0:
-        #right
-        - if <[s]> < 0:
-          - if !<player.has_flag[emote_yaw]>:
-            - define yaw <[mount].location.yaw>
-            - flag <player> emote_yaw:<[yaw]>
-            - define emote_yaw <[yaw]>
-          - else:
-            - define yaw <player.flag[emote_yaw].add[<[turn_rate]>]>
-            - if <[yaw]> > 359:
-              - define yaw 1
-            - flag <player> emote_yaw:<[yaw]>
-            - define emote_yaw <[yaw]>
-        #left
-        - else if <[s]> > 0:
-          - if !<player.has_flag[emote_yaw]>:
-            - define yaw <[mount].location.yaw>
-            - flag <player> emote_yaw:<[yaw]>
-            - define emote_yaw <[yaw]>
-          - else:
-            - define yaw <player.flag[emote_yaw].sub[<[turn_rate]>]>
-            - if <[yaw]> < 2:
-              - define yaw 360
-            - flag <player> emote_yaw:<[yaw]>
-            - define emote_yaw <[yaw]>
+        #collision detection
+        - define b_1 <[vehicle].location.with_pitch[0].above[2.2].forward[1]>
+        - define b_list <list[<[b_1]>]>
+        - define collision <proc[pmodel_collision_detect].context[<[b_list]>]>
+        #falling
+        - define l_1 <[vehicle].location.with_pitch[0].below[0.1]>
+        - define l_1 <list[<[l_1]>]>
+        - define fall <proc[pmodel_falling].context[<[l_1]>]>
+        #whether to go up a block
+        - define u_1 <[vehicle].location.with_pitch[0].forward[1]>
+        - define up_l <list[<[u_1]>]>
+        - define up <proc[pmodel_up_block].context[<[up_l]>]>
+        #normal
+        - if <[collision]> == go && <[fall]> != fall && <[up]> == stay:
+            - teleport <[vehicle]> <[vehicle].location.with_yaw[<[emote_yaw]>]>
+            - adjust <[vehicle]> velocity:<[vehicle].location.with_pitch[0].direction.vector.mul[<[speed]>]>
+        #going up a block
+        - else if <[collision]> == go && <[up]> == up:
+            - define vel 0.5
+            - adjust <[vehicle]> velocity:<[vehicle].location.with_pitch[-45].direction.vector.mul[<[vel]>]>
+        #falling
+        - else if <[fall]> == fall:
+            - define vel <[speed].mul[2.5]>
+            - adjust <[vehicle]> velocity:<[vehicle].location.with_pitch[45].direction.vector.mul[<[vel]>]>
       #backward
       - else if <[f]> < 0:
-        #right
-        - if <[s]> > 0:
-          - if !<player.has_flag[emote_yaw]>:
-            - define yaw <[mount].location.yaw>
-            - flag <player> emote_yaw:<[yaw]>
-            - define emote_yaw <[yaw]>
-          - else:
-            - define yaw <player.flag[emote_yaw].add[<[turn_rate]>]>
-            - if <[yaw]> > 359:
-              - define yaw 1
-            - flag <player> emote_yaw:<[yaw]>
-            - define emote_yaw <[yaw]>
-        #left
-        - else if <[s]> < 0:
-          - if !<player.has_flag[emote_yaw]>:
-            - define yaw <[mount].location.yaw>
-            - flag <player> emote_yaw:<[yaw]>
-            - define emote_yaw <[yaw]>
-          - else:
-            - define yaw <player.flag[emote_yaw].sub[<[turn_rate]>]>
-            - if <[yaw]> < 2:
-              - define yaw 360
-            - flag <player> emote_yaw:<[yaw]>
-            - define emote_yaw <[yaw]>
+          #collision detection
+        - define b_1 <[vehicle].location.with_pitch[0].above[2].backward[1.2]>
+        - define b_list <list[<[b_1]>]>
+        - define collision <proc[pmodel_collision_detect].context[<[b_list]>]>
+        #falling
+        - define l_1 <[vehicle].location.with_pitch[0].below[0.1]>
+        - define l_1 <list[<[l_1]>]>
+        - define fall <proc[pmodel_falling].context[<[l_1]>]>
+        #whether to go up a block
+        - define u_1 <[vehicle].location.with_pitch[0].backward[1]>
+        - define up_l <list[<[u_1]>]>
+        - define up <proc[pmodel_up_block].context[<[up_l]>]>
+        #normal
+        - if <[collision]> == go && <[fall]> != fall && <[up]> == stay:
+            - teleport <[vehicle]> <[vehicle].location.with_yaw[<[emote_yaw]>]>
+            - adjust <[vehicle]> velocity:<[vehicle].location.with_pitch[0].rotate_yaw[180].direction.vector.mul[<[speed]>]>
+        #going up a block
+        - else if <[collision]> == go && <[up]> == up:
+            - define vel 0.5
+            - adjust <[vehicle]> velocity:<[vehicle].location.with_pitch[-45].rotate_yaw[180].direction.vector.mul[<[vel]>]>
+        #falling
+        - else if <[fall]> == fall:
+            - define vel <[speed].mul[2.5]>
+            - adjust <[vehicle]> velocity:<[vehicle].location.with_pitch[45].rotate_yaw[180].direction.vector.mul[<[vel]>]>
       #idle
       - else:
-        #right
-        - if <[s]> < 0:
-          - if !<player.has_flag[emote_yaw]>:
-            - define yaw <[mount].location.yaw>
-            - flag <player> emote_yaw:<[yaw]>
-            - define emote_yaw <[yaw]>
-          - else:
-            - define yaw <player.flag[emote_yaw].add[<[turn_rate]>]>
-            - if <[yaw]> > 359:
-              - define yaw 1
-            - flag <player> emote_yaw:<[yaw]>
-            - define emote_yaw <[yaw]>
-        #left
-        - else if <[s]> > 0:
-          - if !<player.has_flag[emote_yaw]>:
-            - define yaw <[mount].location.yaw>
-            - flag <player> emote_yaw:<[yaw]>
-            - define emote_yaw <[yaw]>
-          - else:
-            - define yaw <player.flag[emote_yaw].sub[<[turn_rate]>]>
-            - if <[yaw]> < 2:
-              - define yaw 360
-            - flag <player> emote_yaw:<[yaw]>
-            - define emote_yaw <[yaw]>
-    #forward
-    - if <[f]> > 0:
-      #collision detection
-      - define b_1 <[vehicle].location.with_pitch[0].above[2.2].forward[1]>
-      - define b_list <list[<[b_1]>]>
-      - define collision <proc[pmodel_collision_detect].context[<[b_list]>]>
-      #falling
-      - define l_1 <[vehicle].location.with_pitch[0].below[0.1]>
-      - define l_1 <list[<[l_1]>]>
-      - define fall <proc[pmodel_falling].context[<[l_1]>]>
-      #whether to go up a block
-      - define u_1 <[vehicle].location.with_pitch[0].forward[1]>
-      - define up_l <list[<[u_1]>]>
-      - define up <proc[pmodel_up_block].context[<[up_l]>]>
-      #normal
-      - if <[collision]> == go && <[fall]> != fall && <[up]> == stay:
+        #falling (reason for being here is to ensure should there be an external event it will fall assuming there is no block below)
+        - define l_1 <[vehicle].location.with_pitch[0].below[0.1]>
+        - define l_1 <list[<[l_1]>]>
+        - define fall <proc[pmodel_falling].context[<[l_1]>]>
+        - if <[fall]> != fall:
           - teleport <[vehicle]> <[vehicle].location.with_yaw[<[emote_yaw]>]>
-          - adjust <[vehicle]> velocity:<[vehicle].location.with_pitch[0].direction.vector.mul[<[speed]>]>
-      #going up a block
-      - else if <[collision]> == go && <[up]> == up:
-          - define vel 0.5
-          - adjust <[vehicle]> velocity:<[vehicle].location.with_pitch[-45].direction.vector.mul[<[vel]>]>
-      #falling
-      - else if <[fall]> == fall:
-          - define vel <[speed].mul[2.5]>
-          - adjust <[vehicle]> velocity:<[vehicle].location.with_pitch[45].direction.vector.mul[<[vel]>]>
-    #backward
-    - else if <[f]> < 0:
-        #collision detection
-      - define b_1 <[vehicle].location.with_pitch[0].above[2].backward[1.2]>
-      - define b_list <list[<[b_1]>]>
-      - define collision <proc[pmodel_collision_detect].context[<[b_list]>]>
-      #falling
-      - define l_1 <[vehicle].location.with_pitch[0].below[0.1]>
-      - define l_1 <list[<[l_1]>]>
-      - define fall <proc[pmodel_falling].context[<[l_1]>]>
-      #whether to go up a block
-      - define u_1 <[vehicle].location.with_pitch[0].backward[1]>
-      - define up_l <list[<[u_1]>]>
-      - define up <proc[pmodel_up_block].context[<[up_l]>]>
-      #normal
-      - if <[collision]> == go && <[fall]> != fall && <[up]> == stay:
-          - teleport <[vehicle]> <[vehicle].location.with_yaw[<[emote_yaw]>]>
-          - adjust <[vehicle]> velocity:<[vehicle].location.with_pitch[0].rotate_yaw[180].direction.vector.mul[<[speed]>]>
-      #going up a block
-      - else if <[collision]> == go && <[up]> == up:
-          - define vel 0.5
-          - adjust <[vehicle]> velocity:<[vehicle].location.with_pitch[-45].rotate_yaw[180].direction.vector.mul[<[vel]>]>
-      #falling
-      - else if <[fall]> == fall:
-          - define vel <[speed].mul[2.5]>
-          - adjust <[vehicle]> velocity:<[vehicle].location.with_pitch[45].rotate_yaw[180].direction.vector.mul[<[vel]>]>
-    #idle
-    - else:
-      #falling (reason for being here is to ensure should there be an external event it will fall assuming there is no block below)
-      - define l_1 <[vehicle].location.with_pitch[0].below[0.1]>
-      - define l_1 <list[<[l_1]>]>
-      - define fall <proc[pmodel_falling].context[<[l_1]>]>
-      - if <[fall]> != fall:
-        - teleport <[vehicle]> <[vehicle].location.with_yaw[<[emote_yaw]>]>
-    - teleport <[mount]> <[vehicle].location.with_yaw[<player.location.yaw>].with_pitch[<player.location.pitch>].relative[<location[0,0,-6].rotate_around_z[<player.location.yaw.to_radians>]>]>
-    - teleport <player.flag[pmodel_collide_box]> <[vehicle].location.with_yaw[<[emote_yaw]>]>
-    - if <player.has_flag[emote_display]>:
-      - teleport <player.flag[emote_display]> <[vehicle].location.above[1.8]>
-    - teleport <[emote_ent]> <[vehicle].location.with_pitch[0]>
+      - define ray_ent <player.flag[pmodel_ray_ent]>
+      - teleport <[ray_ent]> <[vehicle].location>
+      - look <[ray_ent]> <[mount].location> duration:1t
+      - define rot_offset <proc[pmodel_raycast].context[<[ray_ent].location>|<[mount].location.above[2]>]>
+      - teleport <[mount]> <[vehicle].location.with_yaw[<player.location.yaw>].with_pitch[<player.location.pitch>].relative[<location[0,0,-6].rotate_around_z[<player.location.yaw.to_radians>]>]>
+      - teleport <player.flag[pmodel_collide_box]> <[vehicle].location.with_yaw[<[emote_yaw]>]>
+      - if <player.has_flag[emote_display]>:
+        - teleport <player.flag[emote_display]> <[vehicle].location.above[1.8]>
+      - teleport <[emote_ent]> <[vehicle].location.with_pitch[0]>
+
+#my weird method of raycast (if you have a better method please lemme know) - Max^
+pmodel_raycast:
+  type: procedure
+  debug: false
+  definitions: l_1|l_2
+  script:
+  - define script <script[pmodel_config].data_key[config]>
+  - define dist <[l_1].distance[<[l_2]>].sub[1]>
+  - if <[dist]> < <[script.cam_max_range]>:
+    - define ray <[l_1].precise_cursor_on[<[script.cam_max_range]>].if_null[n]>
+  - else:
+    - define dist <[script.cam_max_range]>
+    - definemap loc offset:<[script.cam_max_range]> ray:null
+    - determine <[loc]>
+    - stop
+  - define ray <[ray].material.if_null[n]>
+  - if !<[ray].equals[n]> && <[ray].is_solid>:
+    - definemap loc offset:<[dist]> ray:<[ray]>
+    - determine <[loc]>
+  - else:
+    - definemap loc offset:<[script.cam_max_range]> ray:<[ray]>
+    - determine <[loc]>
+
+pmodel_parts_info:
+  type: task
+  debug: false
+  script:
+  - define root <player.flag[emote_ent]>
+  - foreach <[root].flag[pmodel_parts]> as:part:
+    - narrate <[part].flag[pmodel_def_pose]>
+
+##EXPERIMENTAL
+pmodel_camera_block_detect:
+  type: task
+  debug: false
+  script:
+  - define loc <player.location.precise_cursor_on[10]>
+  - narrate <[loc]>
+  - playeffect effect:flash at:<[loc]> offset:0,0,0 visibility:500
 
 pmodel_up_block:
   type: procedure
@@ -496,6 +548,9 @@ pmodel_falling:
         - stop
       - else:
         - determine s
+############################
+
+##Entities ######################
 
 pmodel_part_stand:
     type: entity
@@ -536,16 +591,9 @@ pmodel_mount_stand:
         gravity: false
         visible: false
         is_small: false
+#####################################
 
-pmodels_load_event:
-    type: world
-    debug: false
-    events:
-      after server start:
-      - if <script[pmodel_config].data_key[config].get[load_on_start].equals[true]>:
-        - ~run pmodels_load_animation def:classic
-        - ~run pmodels_load_animation def:slim
-
+##Core tasks #########################
 pmodels_skin_type:
     type: procedure
     debug: false
@@ -804,6 +852,7 @@ pmodels_move_to_frame:
         - foreach <[root_entity].flag[pmodel_anim_part.<[part_id]>]||<list>> as:ent:
             #15.98 offset for player model
             - teleport <[ent]> <[center].add[<[new_pos].div[15.98].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
+            #will need to wait for release build before implementing these
             #- adjust <[ent]> reset_client_location
             - define radian_rot <[new_rot].xyz.split[,]>
             - define pose <[radian_rot].get[1]>,<[radian_rot].get[2]>,<[radian_rot].get[3]>
@@ -856,6 +905,17 @@ pmodels_catmullrom_proc:
     - define b2 <[a2].mul[<[t3].sub[<[t]>].div[<[t3].sub[<[t1]>]>]>].add[<[a3].mul[<[t].sub[<[t1]>].div[<[t3].sub[<[t1]>]>]>]>]>
     # FVector C  = ( t2-t )/( t2-t1 )*B1 + ( t-t1 )/( t2-t1 )*B2;
     - determine <[b1].mul[<[t2].sub[<[t]>].div[<[t2].sub[<[t1]>]>]>].add[<[b2].mul[<[t].sub[<[t1]>].div[<[t2].sub[<[t1]>]>]>]>]>
+#############################
+
+##Events ########################
+pmodels_load_event:
+    type: world
+    debug: false
+    events:
+      after server start:
+      - if <script[pmodel_config].data_key[config].get[load_on_start].equals[true]>:
+        - ~run pmodels_load_animation def:classic
+        - ~run pmodels_load_animation def:slim
 
 pmodels_emote_events:
     type: world
@@ -889,3 +949,4 @@ pmodels_animator:
         - wait 1t
         - define skin_type <proc[pmodels_skin_type].context[<player>]>
         - flag <player> pmodels_skin_type:<[skin_type]>
+####################################
