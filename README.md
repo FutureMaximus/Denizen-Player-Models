@@ -17,7 +17,7 @@ The texture path for each bone in order is "head|hip|waist|chest|right_arm|right
 if you want to make your own player model for some reason.
 
 This uses elements from dmodels by mcmonkey to animate the player model. https://github.com/mcmonkeyprojects/DenizenModels
-and has been modified here for use in the player models.
+and has been modified here for use in the player model.
 
 There are run tasks available for controlling the player models and a method of showing it to one player only.
 
