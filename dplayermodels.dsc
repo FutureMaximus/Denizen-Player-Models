@@ -16,6 +16,7 @@
 # @Github https://github.com/FutureMaximus/Denizen-Player-Models
 ##NOTICE: This will not work on minecraft versions below 1.17 and will not work with any other
 ##rendertype_entity_translucent core shader files it must be the one provided by mccosmetics or here.
+##Tested Minecraft Version: 1.18.2
 ##Description:
 
 # Denizen Player Models allows you to take the texture of any player or npc and animate them with a model of the player!
@@ -43,7 +44,8 @@
 
 #Put the player_animator folder inside your resource pack assets "resource_pack/assets/player_animator"
 
-# TODO: Add info on implementing player head custom model data file
+#Put the player head model item file in your minecraft resource pack folder "minecraft/models/item/player_head.json"
+
 ##########################
 
 #Put the player model template files in "Denizen/player_models/templates/player_model_template_norm.yml" and "Denizen/player_models/templates/player_model_template_slim.yml"
@@ -224,7 +226,6 @@ pmodel_base_command:
 # - flag <player> pmodel_no_move
 ###############################
 # TODO:
-# FUCK!!!!!!!
 # - Add third person perspective for emote command
 # - Ensure third person camera does not go inside blocks - How?
 # - Add support for external bones like a sword or car
