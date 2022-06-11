@@ -140,9 +140,6 @@ pmodel_part_stand:
         is_small: false
         invulnerable: true
 
-##Implementing external bones will require quite a few changes but let's not be a bitch lmao
-#To start it needs to be able to determine whether to use the head of the armorstand for
-#the external bones or right hand for the player heads this can be done by setting extra data
 pmodels_load_animation:
     type: task
     definitions: type
@@ -337,6 +334,14 @@ pmodels_remove_model:
     - remove <[root_entity].flag[pmodel_parts]>
     - remove <[root_entity]>
 
+pmodels_remove_external_parts:
+    type: task
+    debug: false
+    definitions: root_entity
+    script:
+    - remove <[root_entity].flag[pmodel_external_parts]>
+    - flag <[root_entity]> pmodel_external_parts:!
+
 pmodels_reset_model_position:
     type: task
     debug: false
@@ -378,7 +383,6 @@ pmodels_animate:
     - if <[root_entity].has_flag[external_parts]> && !<[extern_anim_parts].equals[n]>:
       - define center <[root_entity].location.with_pitch[0].below[1.379]>
       - define yaw_mod <[root_entity].location.yaw.add[180].to_radians>
-      - define show_to <player[<[show_to]>].if_null[n]>
       - foreach <[extern_anim_parts]> as:extern_id:
         - foreach <[root_entity].flag[external_parts]> key:id as:part:
           #if the animation uses the external bone
@@ -391,6 +395,7 @@ pmodels_animate:
             - define pose <[rots].get[1].mul[-1]>,<[rots].get[2].mul[-1]>,<[rots].get[3]>
             - spawn pmodel_part_stand[armor_pose=[head=<[pose]>];tracking_range=256] <[center].add[<[offset].rotate_around_y[<[yaw_mod].mul[-1]>]>]> save:spawned
             #fakeequip if show_to is being used
+            - define show_to <player[<[show_to]>].if_null[n]>
             - if !<[show_to].equals[n]>:
               - fakeequip <entry[spawned].spawned_entity> for:<[show_to]> head:<item[<[part.item]>]>
             - else:
@@ -403,6 +408,7 @@ pmodels_animate:
             - flag <entry[spawned].spawned_entity> pmodel_root:<[root_entity]>
             - flag <entry[spawned].spawned_entity> pmodel_def_type:external
             - flag <[root_entity]> pmodel_parts:->:<entry[spawned].spawned_entity>
+            - flag <[root_entity]> pmodel_external_parts:->:<entry[spawned].spawned_entity>
             - flag <[root_entity]> pmodel_anim_part.<[id]>:->:<entry[spawned].spawned_entity>
     - flag <[root_entity]> pmodels_animation_id:<[animation]>
     - flag <[root_entity]> pmodels_anim_time:0
