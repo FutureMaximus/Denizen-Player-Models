@@ -28,15 +28,15 @@
 
 #####################
 ##Info:
-#
+
 #Uses elements from dmodels by mcmonkey https://github.com/mcmonkeyprojects/DenizenModels and requires the bbmodel converter by dmodels for the animations.
-#
+
 #For player emotes made by other people https://mcmodels.net/?product_cat=&post_type=product&s=Emote (Must be for the mccosmetics plugin not IA).
-#
-#Player models allows the use of player model animations useful for emotes or cutscenes as a per player showing task is available.
-#
+
+#Denizen Player Models allows the use of player model animations useful for emotes or cutscenes as a per player showing task is available.
+
 #Compatible with the mccosmetics plugin
-#
+
 ##How to get started:
 
 ##Notice: If you have the mccosmetics core shader file and player_animator folder you can skip this part
@@ -57,8 +57,21 @@
 
 #Example usage in cmd (You may need to run cmd as administrator):
 #cd C:/Program Files/DenizenModelsConverter
-#DenizenModelsConverter.exe make_pack my_animations.bbmodel resource_pack player_animations/not_needed player_animations/not_needed --item:iron_ingot
+#DenizenModelsConverter.exe make_pack my_animations.bbmodel resource_pack player_animations/sword_swing_animation player_animations/sword_swing_animation --item:iron_ingot
 #(use it on an item you don't use to avoid conflict with your resource pack)
+
+##External Bone Usage:
+#Things to know:
+# - External bones must be in a single bbmodel file
+# - You can have multiple animations using the same external bone(s)
+# - You can attach external bones to the player model's bones such as the right forearm
+#How to use:
+#Generate a dmodel file for the animation and put the custom items (external bones) in your resource pack made from
+#the DenizenModelsConverter (Make sure to do it on an item you don't use to avoid conflict with your resource pack) with --item:(material)
+#Put the dmodel file in your animations folder
+#Once you've zipped your resource pack you can do /pmodel reload and enjoy
+#How to import java items into your player model bbmodel file:
+#In your player model bbmodel file go to file/import/"import project" then select your java item bbmodel file
 
 #####################
 ##Config:
@@ -68,20 +81,23 @@ pmodel_config:
   config:
     #loads the animations on server start
     load_on_start: true
+    #reload scripts on player model reload
+    reload_scripts: true
 
 #command for ops only (here you can reload the animations)
 pmodel_base_command:
   type: command
   debug: false
-  name: denizenplayermodel
-  usage: /denizenplayermodel
+  name: denizenplayermodels
+  usage: /denizenplayermodels
   aliases:
   - pmodel
   description: Pmodel command
   permission: op.op
   script:
   - if <context.args.get[1]> == reload && <player.is_op> || <context.source_type> == SERVER:
-    - reload
+    - if <script[pmodel_config].data_key[config].get[reload_scripts].equals[true]>:
+      - reload
     - ~run pmodels_load_animation def:classic
     - ~run pmodels_load_animation def:slim
     - narrate "[Denizen Player Models] Reloaded animations."
@@ -101,13 +117,16 @@ pmodel_base_command:
 # - run pmodels_animate def.root_entity:<[root]> def.animation:idle
 # # To end an automatic animation
 # - run pmodels_end_animation def.root_entity:<[root]>
-# # To move the entity to a single frame of an animation (timespot is a decimal number of seconds from the start of the animation)
+# # To move the player model to a single frame of an animation (timespot is a decimal number of seconds from the start of the animation)
 # - run pmodels_move_to_frame def.root_entity:<[root]> def.animation:idle def.timespot:0.5
 # # To remove the player model
 # - run pmodels_remove_model def.root_entity:<[root]>
+# # To remove external parts of player model
+# - run pmodels_remove_external_parts def.root_entity:<[root]>
 ###############################
 # TODO:
-# - Add support for external bones like a sword or car
+# - Fix list of external bones within each animation
+# - Implement external bones in the correct part order
 # - Add support for hand/offhand items
 # - Add animation to animation transitions and transition to normal state when ending emote
 
@@ -138,6 +157,17 @@ pmodel_part_stand:
         gravity: false
         visible: false
         is_small: false
+        invulnerable: true
+
+pmodel_part_stand_small:
+    type: entity
+    debug: false
+    entity_type: armor_stand
+    mechanisms:
+        marker: true
+        gravity: false
+        visible: false
+        is_small: true
         invulnerable: true
 
 pmodels_load_animation:
@@ -177,9 +207,7 @@ pmodels_load_animation:
       #gather external bones should there be any
       - define extern_order <yaml[file_<[anim_file]>].read[order]>
       - define extern_parts <yaml[file_<[anim_file]>].read[models]>
-      - define extern_list <list>
       - foreach <[extern_parts]> key:id as:part:
-        - define name <[part.name]>
         - choose <[part.name]>:
           - case player_root:
             - foreach next
@@ -208,7 +236,6 @@ pmodels_load_animation:
           - case left_foreleg:
             - foreach next
           - default:
-            - define raw_parts.<[id]> <[extern_parts.<[id]>]>
             - define extern_list:->:<[id]>
       #stores the animations for use
       - foreach <[animations]> key:name as:anim:
@@ -240,7 +267,7 @@ pmodels_load_animation:
               - foreach stop
     - if !<[extern_list].is_empty>:
       - foreach <[extern_list]> as:extern_id:
-        - foreach <[raw_parts]> key:id as:part:
+        - foreach <[extern_parts]> key:id as:part:
           - if <[extern_id]> == <[id]>:
             #type external is for external bones (ones that use armorstand head instead of right hand)
             - define extern_parts.<[id]>.type external
@@ -333,14 +360,16 @@ pmodels_remove_model:
     script:
     - remove <[root_entity].flag[pmodel_parts]>
     - remove <[root_entity]>
+    - flag <[root_entity]> pmodel_external_parts:!
 
 pmodels_remove_external_parts:
     type: task
     debug: false
     definitions: root_entity
     script:
-    - remove <[root_entity].flag[pmodel_external_parts]>
-    - flag <[root_entity]> pmodel_external_parts:!
+    - if <[root_entity].has_flag[pmodel_external_parts]>:
+      - remove <[root_entity].flag[pmodel_external_parts]>
+      - flag <[root_entity]> pmodel_external_parts:!
 
 pmodels_reset_model_position:
     type: task
@@ -354,7 +383,7 @@ pmodels_reset_model_position:
           - case default:
             - adjust <[part]> armor_pose:[right_arm=<[part].flag[pmodel_def_pose]>]
           - case external:
-            - define center <[root_entity].location.with_pitch[0].below[1.379]>
+            - define center <[root_entity].location.with_pitch[0].below[0.7]>
             - adjust <[part]> armor_pose:[head=<[part].flag[pmodel_def_pose]>]
         - teleport <[part]> <[center].add[<[part].flag[pmodel_def_offset].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
 
@@ -381,7 +410,7 @@ pmodels_animate:
     #spawn external bones if they exist in the animation
     - define extern_anim_parts <[animation_data.external_bones].if_null[n]>
     - if <[root_entity].has_flag[external_parts]> && !<[extern_anim_parts].equals[n]>:
-      - define center <[root_entity].location.with_pitch[0].below[1.379]>
+      - define center <[root_entity].location.with_pitch[0].below[0.7]>
       - define yaw_mod <[root_entity].location.yaw.add[180].to_radians>
       - foreach <[extern_anim_parts]> as:extern_id:
         - foreach <[root_entity].flag[external_parts]> key:id as:part:
@@ -393,7 +422,7 @@ pmodels_animate:
             - define offset <location[<[part.origin]>].div[15.98]>
             - define rots <[part.rotation].split[,].parse[to_radians]>
             - define pose <[rots].get[1].mul[-1]>,<[rots].get[2].mul[-1]>,<[rots].get[3]>
-            - spawn pmodel_part_stand[armor_pose=[head=<[pose]>];tracking_range=256] <[center].add[<[offset].rotate_around_y[<[yaw_mod].mul[-1]>]>]> save:spawned
+            - spawn pmodel_part_stand_small[armor_pose=[head=<[pose]>];tracking_range=256] <[center].add[<[offset].rotate_around_y[<[yaw_mod].mul[-1]>]>]> save:spawned
             #fakeequip if show_to is being used
             - define show_to <player[<[show_to]>].if_null[n]>
             - if !<[show_to].equals[n]>:
@@ -496,7 +525,7 @@ pmodels_move_to_frame:
               - case default:
                 - teleport <[ent]> <[center].add[<[new_pos].div[15.98].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
               - case external:
-                - define center <[root_entity].location.with_pitch[0].below[1.379]>
+                - define center <[root_entity].location.with_pitch[0].below[0.7]>
                 - teleport <[ent]> <[center].add[<[new_pos].div[15.98].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
             - adjust <[ent]> reset_client_location
             - define radian_rot <[new_rot].xyz.split[,]>
@@ -531,7 +560,6 @@ pmodels_catmullrom_proc:
     # Zero distances are impossible to calculate
     - if <[p2].sub[<[p1]>].vector_length> < 0.01:
         - determine <[p2]>
-    # TODO: Validate this mess
     # Based on https://en.wikipedia.org/wiki/Centripetal_Catmull%E2%80%93Rom_spline#Code_example_in_Unreal_C++
     # With safety checks added for impossible situations
     - define t0 0
