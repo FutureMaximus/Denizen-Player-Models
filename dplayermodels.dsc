@@ -125,8 +125,6 @@ pmodel_base_command:
 # - run pmodels_remove_external_parts def.root_entity:<[root]>
 ###############################
 # TODO:
-# - Fix list of external bones within each animation
-# - Implement external bones in the correct part order
 # - Add support for hand/offhand items
 # - Add animation to animation transitions and transition to normal state when ending emote
 
@@ -237,6 +235,7 @@ pmodels_load_animation:
             - foreach next
           - default:
             - define extern_list:->:<[id]>
+            - define new_extern_parts.<[id]> <[extern_parts.<[id]>]>
       #stores the animations for use
       - foreach <[animations]> key:name as:anim:
         - foreach <[order]> as:id:
@@ -246,12 +245,14 @@ pmodels_load_animation:
                 - define raw_animators.<[id]> <map[frames=<list>]>
         #input external bone animations should they exist
         - if !<[extern_list].is_empty>:
-          - foreach <[extern_list]> as:ex_id:
-              - define anim.external_bones <[ex_id]>
-              - if <[anim.animators].contains[<[ex_id]>]>:
-                  - define raw_animators.<[ex_id]>.frames <[anim.animators.<[ex_id]>.frames].sort_by_value[get[time]]>
-              - else:
-                  - define raw_animators.<[ex_id]> <map[frames=<list>]>
+          - foreach <[extern_list]> as:extern_id:
+              - foreach <[extern_parts]> key:ex_part_id as:part:
+                - if <[ex_part_id]> == <[extern_id]>:
+                  - define anim.external_bones <[ex_part_id]>
+                  - if <[anim.animators].contains[<[ex_part_id]>]>:
+                      - define raw_animators.<[ex_part_id]>.frames <[anim.animators.<[ex_part_id]>.frames].sort_by_value[get[time]]>
+                  - else:
+                      - define raw_animators.<[ex_part_id]> <map[frames=<list>]>
         - define anim.animators <[raw_animators]>
         - define raw_animations.<[name]> <[anim]>
       - yaml unload id:file_<[anim_file]>
@@ -267,11 +268,11 @@ pmodels_load_animation:
               - foreach stop
     - if !<[extern_list].is_empty>:
       - foreach <[extern_list]> as:extern_id:
-        - foreach <[extern_parts]> key:id as:part:
-          - if <[extern_id]> == <[id]>:
+        - foreach <[new_extern_parts]> key:ex_id as:part:
+          - if <[extern_id]> == <[ex_id]>:
             #type external is for external bones (ones that use armorstand head instead of right hand)
-            - define extern_parts.<[id]>.type external
-            - define new_list.<[id]> <[extern_parts.<[id]>]>
+            - define new_extern_parts.<[ex_id]>.type external
+            - define new_list.<[ex_id]> <[new_extern_parts.<[ex_id]>]>
     - define raw_parts <[new_list]>
     - choose <[type]>:
       - case classic:
@@ -353,50 +354,6 @@ pmodels_spawn_model:
       - flag <[root_entity]> external_parts:<[external_parts]>
     - determine <[root_entity]>
 
-pmodels_remove_model:
-    type: task
-    debug: false
-    definitions: root_entity
-    script:
-    - remove <[root_entity].flag[pmodel_parts]>
-    - remove <[root_entity]>
-    - flag <[root_entity]> pmodel_external_parts:!
-
-pmodels_remove_external_parts:
-    type: task
-    debug: false
-    definitions: root_entity
-    script:
-    - if <[root_entity].has_flag[pmodel_external_parts]>:
-      - remove <[root_entity].flag[pmodel_external_parts]>
-      - flag <[root_entity]> pmodel_external_parts:!
-
-pmodels_reset_model_position:
-    type: task
-    debug: false
-    definitions: root_entity
-    script:
-    - define center <[root_entity].location.with_pitch[0].below[1.379].relative[0.32,0,0]>
-    - define yaw_mod <[root_entity].location.yaw.add[180].to_radians>
-    - foreach <[root_entity].flag[pmodel_parts]> as:part:
-        - choose <[part].flag[pmodel_def_type]>:
-          - case default:
-            - adjust <[part]> armor_pose:[right_arm=<[part].flag[pmodel_def_pose]>]
-          - case external:
-            - define center <[root_entity].location.with_pitch[0].below[0.7]>
-            - adjust <[part]> armor_pose:[head=<[part].flag[pmodel_def_pose]>]
-        - teleport <[part]> <[center].add[<[part].flag[pmodel_def_offset].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
-
-pmodels_end_animation:
-    type: task
-    debug: false
-    definitions: root_entity
-    script:
-    - flag <[root_entity]> pmodels_animation_id:!
-    - flag <[root_entity]> pmodels_anim_time:0
-    - flag server pmodels_anim_active.<[root_entity].uuid>:!
-    - run pmodels_reset_model_position def.root_entity:<[root_entity]>
-
 pmodels_animate:
     type: task
     debug: false
@@ -442,6 +399,50 @@ pmodels_animate:
     - flag <[root_entity]> pmodels_animation_id:<[animation]>
     - flag <[root_entity]> pmodels_anim_time:0
     - flag server pmodels_anim_active.<[root_entity].uuid>
+
+pmodels_remove_model:
+    type: task
+    debug: false
+    definitions: root_entity
+    script:
+    - remove <[root_entity].flag[pmodel_parts]>
+    - remove <[root_entity]>
+    - flag <[root_entity]> pmodel_external_parts:!
+
+pmodels_remove_external_parts:
+    type: task
+    debug: false
+    definitions: root_entity
+    script:
+    - if <[root_entity].has_flag[pmodel_external_parts]>:
+      - remove <[root_entity].flag[pmodel_external_parts]>
+      - flag <[root_entity]> pmodel_external_parts:!
+
+pmodels_reset_model_position:
+    type: task
+    debug: false
+    definitions: root_entity
+    script:
+    - define center <[root_entity].location.with_pitch[0].below[1.379].relative[0.32,0,0]>
+    - define yaw_mod <[root_entity].location.yaw.add[180].to_radians>
+    - foreach <[root_entity].flag[pmodel_parts]> as:part:
+        - choose <[part].flag[pmodel_def_type]>:
+          - case default:
+            - adjust <[part]> armor_pose:[right_arm=<[part].flag[pmodel_def_pose]>]
+          - case external:
+            - define center <[root_entity].location.with_pitch[0].below[0.7]>
+            - adjust <[part]> armor_pose:[head=<[part].flag[pmodel_def_pose]>]
+        - teleport <[part]> <[center].add[<[part].flag[pmodel_def_offset].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
+
+pmodels_end_animation:
+    type: task
+    debug: false
+    definitions: root_entity
+    script:
+    - flag <[root_entity]> pmodels_animation_id:!
+    - flag <[root_entity]> pmodels_anim_time:0
+    - flag server pmodels_anim_active.<[root_entity].uuid>:!
+    - run pmodels_reset_model_position def.root_entity:<[root_entity]>
 
 pmodels_move_to_frame:
     type: task
