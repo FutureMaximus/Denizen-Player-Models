@@ -31,3 +31,5 @@ Tested Denizen Version: REL-1771
 Tested Minecraft Version: 1.18.2 (Might work with 1.17 since Tixco updated the shader file ask him not me I haven't been able to test it on 1.17 since I have some shader stuff of my own that don't work on 1.17.)
 
 Compatible with the mccosmetics plugin https://mythiccraft.io/index.php?resources/mccosmetics-the-ultimate-cosmetics-plugin.818/
+
+Warning: Please do not change the player model bone names as the script relies on them for data gathering and external bones are fine of course.
