@@ -1,3 +1,7 @@
+#Emotes for Denizen Player Models
+#This is purely optional but this works quite well with Denizen Player Models for the use of emotes
+#if you don't want this script it is safe to remove it.
+
 ##Emote tasks ################################
 pmodel_emote_list:
   type: procedure
@@ -265,18 +269,23 @@ pmodel_emote_vehicle_task:
       - define rot_loc <[vehicle].location.with_yaw[<player.location.yaw>].with_pitch[<player.location.pitch>].relative[<location[0,0,-<[max_r]>].rotate_around_z[<player.location.yaw.to_radians>]>]>
       - define ray_ent <player.flag[pmodel_ray_ent]>
       - teleport <[ray_ent]> <[vehicle].location.above[1]>
-      - look <[ray_ent]> <[rot_loc].above[1.5]> duration:1t
+      - look <[ray_ent]> <[rot_loc].above[1]> duration:1t
       ##Needs way to determine if block is solid or not
-      - define ray <[ray_ent].location.precise_cursor_on[<[max_r].add[1]>].if_null[n]>
-      - define impact <[ray_ent].location.precise_impact_normal[<[max_r].add[1]>].if_null[n]>
+      - define ray <[ray_ent].location.ray_trace[range=<[max_r].add[1]>;return=precise;nonsolids=false].if_null[n]>
+      - define impact <[ray_ent].location.ray_trace[range=<[max_r].add[1]>;return=normal;nonsolids=false].if_null[n]>
       - if !<[ray].equals[n]> && !<[impact].equals[n]>:
             - define yaw <player.location.yaw>
+            - narrate <[impact]>
             - choose <[impact].simple>:
-              #when the camera was on the ceiling previously it would be inside the block this prevents that
+              #ceiling
               - case 0,-1,0:
-                - define rot_loc <[ray].below[1.5].with_yaw[<player.location.yaw>]>
+                - define rot_loc <[ray].below[1.5].with_yaw[<player.location.yaw>].forward[1]>
+              #floor
+              - case 0,1,0:
+                - define rot_loc <[ray].below[2.3].forward[1.3]>
               - default:
-                - define rot_loc <[ray].below[1.1].with_yaw[<player.location.yaw>].forward[1.2]>
+                - define rot_loc <[ray].below[1.1].with_yaw[<player.location.yaw>].forward[1.3]>
+            - playeffect effect:small_flame at:<[ray_ent].location.points_between[<[ray]>].distance[0.5]> visibility:500 offset:0,0,0
       - teleport <[mount]> <[rot_loc]>
       #the player model
       - teleport <[emote_ent]> <[vehicle].location.with_pitch[0]>
@@ -328,6 +337,7 @@ pmodel_vehicle_stand:
         gravity: true
         visible: false
         is_small: false
+        silent: true
 
 pmodel_collision_box:
     type: entity
@@ -348,6 +358,7 @@ pmodel_mount_stand:
         gravity: false
         visible: false
         is_small: false
+        silent: true
 #####################################
 
 ##events
