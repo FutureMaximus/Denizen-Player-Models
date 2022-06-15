@@ -33,7 +33,7 @@ pmodel_emote_config:
   emotes:
     sit:
       speed: 0.0
-      turn_rate: 20.0
+      turn_rate: 0.0
       perm: emote.sit
     meditate:
       speed: 0.1
