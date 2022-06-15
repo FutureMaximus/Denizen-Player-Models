@@ -275,7 +275,6 @@ pmodel_emote_vehicle_task:
       - define impact <[ray_ent].location.ray_trace[range=<[max_r].add[1]>;return=normal;nonsolids=false].if_null[n]>
       - if !<[ray].equals[n]> && !<[impact].equals[n]>:
             - define yaw <player.location.yaw>
-            - narrate <[impact]>
             - choose <[impact].simple>:
               #ceiling
               - case 0,-1,0:
