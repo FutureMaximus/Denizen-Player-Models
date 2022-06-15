@@ -270,7 +270,6 @@ pmodel_emote_vehicle_task:
       - define ray_ent <player.flag[pmodel_ray_ent]>
       - teleport <[ray_ent]> <[vehicle].location.above[1]>
       - look <[ray_ent]> <[rot_loc].above[1]> duration:1t
-      ##Needs way to determine if block is solid or not
       - define ray <[ray_ent].location.ray_trace[range=<[max_r].add[1]>;return=precise;nonsolids=false].if_null[n]>
       - define impact <[ray_ent].location.ray_trace[range=<[max_r].add[1]>;return=normal;nonsolids=false].if_null[n]>
       - if !<[ray].equals[n]> && !<[impact].equals[n]>:
@@ -284,7 +283,6 @@ pmodel_emote_vehicle_task:
                 - define rot_loc <[ray].below[2.3].forward[1.3]>
               - default:
                 - define rot_loc <[ray].below[1.1].with_yaw[<player.location.yaw>].forward[1.3]>
-            - playeffect effect:small_flame at:<[ray_ent].location.points_between[<[ray]>].distance[0.5]> visibility:500 offset:0,0,0
       - teleport <[mount]> <[rot_loc]>
       #the player model
       - teleport <[emote_ent]> <[vehicle].location.with_pitch[0]>
