@@ -31,54 +31,6 @@ pmodel_emote_config:
   # perm: emote.wave "Perm allows you to set a permission for this emote to disable this set it to 'none'."
   #here you can set the emotes for players and permissions required for them
   emotes:
-    pirate_run:
-      speed: 0.2
-      turn_rate: 9
-      perm: emote.pirate_run
-    chicken:
-      speed: 0.2
-      turn_rate: 8.0
-      perm: emote.chicken
-    hop:
-      speed: 0.09
-      turn_rate: 7.0
-      perm: emote.hop
-    crawl:
-      speed: 0.05
-      turn_rate: 7.0
-      perm: emote.crawl
-    mime:
-      speed: 0.1
-      turn_rate: 5.0
-      perm: emote.mime
-    disco:
-      speed: 0.7
-      turn_rate: 20.0
-      perm: emote.disco
-    slowmorun:
-      speed: 0.3
-      turn_rate: 8.0
-      perm: emote.slowmo
-    moonwalk:
-      speed: 0.1
-      turn_rate: 6.0
-      perm: emote.moonwalk
-    sad:
-      speed: 0.05
-      turn_rate: 4.0
-      perm: emote.sad
-    superman:
-      speed: 0.3
-      turn_rate: 7.0
-      perm: emote.superman
-    yes:
-      speed: 0.0
-      turn_rate: 1.2
-      perm: emote.yes
-    no:
-      speed: 0.0
-      turn_rate: 1.2
-      perm: emote.no
     sit:
       speed: 0.0
       turn_rate: 20.0
