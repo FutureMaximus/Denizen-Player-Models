@@ -13,6 +13,9 @@ The core shader will mess up placed player heads due to the texture uv coordinat
 being changed by calculating vertex ids (amount of player heads present in player's view) no one has been able to 
 find a solution to the placed player head problem and it's unlikely it will be solved but who knows.
 
+![image](https://user-images.githubusercontent.com/97306922/175753617-7e7b8bcb-2106-4498-9cd6-9d74103daf29.png)
+
+
 Does it work with optifine?
 If your just using optifine then yes but if it's with a shader pack like BSL that will mess up the texturing.
 
