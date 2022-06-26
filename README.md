@@ -1,6 +1,8 @@
 # Denizen-Player-Models
 Animated Player Models in Java Minecraft!
 
+![dplayermodels_gif_3](https://user-images.githubusercontent.com/97306922/175800382-ceec984e-1fc7-469e-be00-0aecfd0153f3.gif)
+
 # Wiki
 https://github.com/FutureMaximus/Denizen-Player-Models/wiki
 
