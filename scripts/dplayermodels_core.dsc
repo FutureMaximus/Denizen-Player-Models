@@ -1,6 +1,7 @@
 #Core Tasks of Denizen Player Models
-
+#This is required to spawn and animate the player models.
 ##Core tasks #########################
+#Determine if player has classic skin or slim skin this also works on npcs
 pmodels_skin_type:
     type: procedure
     debug: false
@@ -23,7 +24,7 @@ pmodel_part_stand:
     debug: false
     entity_type: armor_stand
     mechanisms:
-        marker: true
+        marker: false
         gravity: false
         visible: false
         is_small: false
@@ -60,6 +61,7 @@ pmodels_load_animation:
     - yaml unload id:<[yamlid]>
     - foreach <[order]> as:id:
         - define raw_parts.<[id]> <[parts.<[id]>]>
+    #look for animation files
     - define animation_files <server.list_files[player_models/animations].if_null[n]>
     - if <[animation_files].is_empty>:
       - debug error "[Denizen Player Models] There are no animations in "player_models/animations""
@@ -165,6 +167,7 @@ pmodels_spawn_model:
     - if <[player].equals[n]> && <[npc].equals[n]>:
       - debug error "[Denizen Player Models] Must specify a player."
       - stop
+    #determine skin type
     - if !<[npc].equals[n]> && <[player].equals[n]>:
       - define player <[npc]>
     - if <[player].is_npc>:
@@ -193,7 +196,7 @@ pmodels_spawn_model:
     - foreach <server.flag[pmodels_data.model_<[model_name]>]> key:id as:part:
         - if !<[part.item].exists>:
             - foreach next
-        #external parts
+        #if the part is external skip it and store it as data to use later
         - else if <[part.type]> == external:
             - define external_parts.<[id]> <[part]>
             - foreach next
@@ -216,7 +219,6 @@ pmodels_spawn_model:
         - flag <entry[spawned].spawned_entity> pmodel_def_item:<item[<[part.item]>]>
         - flag <entry[spawned].spawned_entity> pmodel_def_offset:<[offset]>
         - flag <entry[spawned].spawned_entity> pmodel_root:<entry[root].spawned_entity>
-        #so the animator knows what to do with this armorstand
         - if <[part.type]> == default:
           - flag <entry[spawned].spawned_entity> pmodel_def_type:<[part.type]>
         - flag <entry[root].spawned_entity> pmodel_parts:->:<entry[spawned].spawned_entity>
@@ -394,7 +396,6 @@ pmodels_move_to_frame:
         - define parentage.<[part_id]>.rotation:<[new_rot]>
         - define parentage.<[part_id]>.offset:<[rot_offset].add[<[parent_offset]>]>
         - foreach <[root_entity].flag[pmodel_anim_part.<[part_id]>]||<list>> as:ent:
-            #15.98 offset for player model
             - choose <[ent].flag[pmodel_def_type]>:
               - case default:
                 - teleport <[ent]> <[center].add[<[new_pos].div[15.98].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
