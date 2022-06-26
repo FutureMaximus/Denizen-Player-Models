@@ -22,19 +22,22 @@ pmodel_emote_config:
     no_perm: " You do not seem to have access to that emote!"
     #max_range: 8 "Maximum range the third person camera can go."
     cam_max_range: 5
-    #min_range: 2 "Minimum range the third person camera can go"
-    cam_min_range: 2
   #emotes configuration
   #INFO:
   # speed: 0.2 "Speed allows you to move during the emote at a set speed setting this to 0 prevents that."
   # turn_rate: 6.0 "Determine how fast you will turn while moving in the emote higher values result in a faster turn rate setting this to 0 prevents turning."
   # perm: emote.wave "Perm allows you to set a permission for this emote to disable this set it to 'none'."
+  # cam_range: 5 "How far the camera can go from the player" Default: cam_max_range in config
+  # cam_offset: -1,0,0 "The camera offset" Default: 0,0,0
   #here you can set the emotes for players and permissions required for them
   emotes:
     sit:
       speed: 0.0
       turn_rate: 0.0
       perm: emote.sit
+      cam_range: 5
+      cam_offset: -1,0,0
+      perm: emote.pirate_run
     meditate:
       speed: 0.1
       turn_rate: 7.0
