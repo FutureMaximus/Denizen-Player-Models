@@ -44,9 +44,8 @@ pmodel_emote_task:
     - flag <[player]> emote_ent:<[root]>
     - flag <[player]> emote_yaw:<[player].location.yaw>
     #raycast entity used for camera collision detection
-    - spawn bat[has_ai=false;silent=true;gravity=false;invulnerable=true] <[player].location.above[0.5].with_yaw[<[player].location.yaw>]> save:ray
+    - spawn pmodel_ray_ent <[player].location.above[0.5].with_yaw[<[player].location.yaw>]> save:ray
     - define ray_ent <entry[ray].spawned_entity>
-    - cast INVISIBILITY <[ray_ent]> duration:100000000s hide_particles
     - flag <[player]> pmodel_ray_ent:<[ray_ent]>
     #vehicle
     - spawn pmodel_vehicle_stand <[player].location.above[0.5].with_yaw[<[player].location.yaw>]> save:vehicle
@@ -135,6 +134,7 @@ pmodel_emote_vehicle_task:
       - define script_c <[script].data_key[config]>
       #abs in case you for some reason set it to negative...weirdo
       - define speed <[script_e.<[emote]>.speed].abs.if_null[0.0]>
+      - define cam_offset <[script_e.<[emote]>.cam_offset].if_null[0,0,0]>
       - define turn_rate <[script_e.<[emote]>.turn_rate].abs.if_null[0.0]>
       #f = forward/back s = left or right
       #left or right movement
@@ -265,24 +265,25 @@ pmodel_emote_vehicle_task:
       - if <player.has_flag[emote_display]>:
         - teleport <player.flag[emote_display]> <[vehicle].location.above[1.8]>
       #camera collide detection
-      - define max_r <[script_c.cam_max_range]>
-      - define rot_loc <[vehicle].location.with_yaw[<player.location.yaw>].with_pitch[<player.location.pitch>].relative[<location[0,0,-<[max_r]>].rotate_around_z[<player.location.yaw.to_radians>]>]>
+      - define max_r <[script_e.<[emote]>.cam_range].if_null[<[script_c.cam_max_range]>]>
+      - define rot_loc <[vehicle].location.with_yaw[<player.location.yaw>].with_pitch[<player.location.pitch>].relative[<location[0,0,-<[max_r]>].rotate_around_z[<player.location.yaw.to_radians>]>].relative[<[cam_offset]>]>
       - define ray_ent <player.flag[pmodel_ray_ent]>
       - teleport <[ray_ent]> <[vehicle].location.above[1]>
       - look <[ray_ent]> <[rot_loc].above[1]> duration:1t
-      - define ray <[ray_ent].location.ray_trace[range=<[max_r].add[1]>;return=precise;nonsolids=false].if_null[n]>
-      - define impact <[ray_ent].location.ray_trace[range=<[max_r].add[1]>;return=normal;nonsolids=false].if_null[n]>
+      - define ray <[ray_ent].location.ray_trace[range=<[max_r].add[1]>;return=precise;nonsolids=false;fluids=true].if_null[n]>
+      - define impact <[ray_ent].location.ray_trace[range=<[max_r].add[1]>;return=normal;nonsolids=false;fluids=true].if_null[n]>
       - if !<[ray].equals[n]> && !<[impact].equals[n]>:
             - define yaw <player.location.yaw>
             - choose <[impact].simple>:
               #ceiling
               - case 0,-1,0:
-                - define rot_loc <[ray].below[1.5].with_yaw[<player.location.yaw>].forward[1]>
+                - define rot_loc <[ray].below[1.5].with_yaw[<player.location.yaw>].forward[1].relative[<[cam_offset]>]>
               #floor
               - case 0,1,0:
-                - define rot_loc <[ray].below[2.3].forward[1.3]>
+                - define rot_loc <[ray].below[2.3].forward[1.3].relative[<[cam_offset]>]>
+              #walls
               - default:
-                - define rot_loc <[ray].below[1.1].with_yaw[<player.location.yaw>].forward[1.3]>
+                - define rot_loc <[ray].below[1.1].with_yaw[<player.location.yaw>].forward[1.3].relative[<[cam_offset]>]>
       - teleport <[mount]> <[rot_loc]>
       #the player model
       - teleport <[emote_ent]> <[vehicle].location.with_pitch[0]>
@@ -324,6 +325,17 @@ pmodel_falling:
 ############################
 
 ##Entities ######################
+
+pmodel_ray_ent:
+    type: entity
+    debug: false
+    entity_type: armor_stand
+    mechanisms:
+        marker: true
+        gravity: false
+        visible: false
+        is_small: true
+        silent: true
 
 pmodel_vehicle_stand:
     type: entity
