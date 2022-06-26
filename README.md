@@ -1,6 +1,9 @@
 # Denizen-Player-Models
 Animated Player Models in Java Minecraft!
 
+# Wiki
+https://github.com/FutureMaximus/Denizen-Player-Models/wiki
+
 With Denizen Player Models you can animate a player model to do anything you want whether it'd be emotes, a third person perspective type of gamemode, or a cutscene the choice is yours!
 
 Required resources:
