@@ -11,9 +11,10 @@
 # @Special thanks to mcmonkey for creating dmodels and making this possible for everyone!
 # @date 2022/06/03
 # @updated 2022/06/10
-# @denizen-build REL-1771
-# @script-version 1.1
+# @denizen-build REL-1772
+# @script-version 1.1 BETA
 # @Github https://github.com/FutureMaximus/Denizen-Player-Models
+##Note: This will not work Denizen release version 1771 or below.
 ##Update 1.1 Info:
 #- Added ability to use external bones
 
@@ -24,7 +25,7 @@
 
 # Denizen Player Models allows you to take the texture of any player or npc and animate them with a model of the player!
 # For more control over the player models there is an API as well.
-# I plan on adding more features such as per weapon combat or mobility animations in the future.
+# I plan on adding more features such as mobility tasks in the future.
 
 #####################
 ##Info:
@@ -60,7 +61,7 @@
 #DenizenModelsConverter.exe make_pack my_animations.bbmodel resource_pack player_animations/sword_swing_animation player_animations/sword_swing_animation --item:iron_ingot
 #(use it on an item you don't use to avoid conflict with your resource pack)
 
-##External Bone Usage:
+##External Bone Usage (Version 1.1):
 #Things to know:
 # - External bones must be in a single bbmodel file
 # - You can have multiple animations using the same external bone(s)
@@ -77,9 +78,8 @@
 ##Config:
 pmodel_config:
   type: data
-  #message config for emote command
   config:
-    #loads the animations on server start
+    #load animations on server start this should generally be kept true
     load_on_start: true
     #reload scripts on player model reload (Should only be true when debugging)
     reload_scripts: true
@@ -126,5 +126,7 @@ pmodel_base_command:
 # - run pmodels_remove_external_parts def.root_entity:<[root]>
 ###############################
 # TODO:
-# - Add support for hand/offhand items
-# - Add animation to animation transitions and transition to normal state when ending emote
+# - No longer be dependent on DenizenModelsConverter and generate animations or external bones in a script including excluding player model parts
+# - Create utility tasks players can use for the player models such as the third person camera or moving
+# - Add support for hand/offhand items with the ability to turn this off for certain animations
+# - Add animation to animation transitions and ability to transition to default state 0,0,0
