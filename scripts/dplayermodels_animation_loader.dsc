@@ -110,11 +110,11 @@ pmodels_load_bbmodel:
                 - run pmodels_loader_readoutline def.animation_file:<[animation_file]> def.outline:<[outliner]>
         # =============== Animations loading ===============
         - foreach <[data.animations]||<list>> as:animation:
-            - define anim_data.loop <[animation.loop]>
-            - define anim_data.override <[animation.override]>
-            - define anim_data.anim_time_update <[animation.anim_time_update]>
-            - define anim_data.blend_weight <[animation.blend_weight]>
-            - define anim_data.length <[animation.length]>
+            - define animators.<[animation.name]>.loop <[animation.loop]>
+            - define animators.<[animation.name]>.override <[animation.override]>
+            - define animators.<[animation.name]>.anim_time_update <[animation.anim_time_update]>
+            - define animators.<[animation.name]>.blend_weight <[animation.blend_weight]>
+            - define animators.<[animation.name]>.length <[animation.length]>
             - define animator_data <[animation.animators]>
             - foreach <[animator_data]> key:uuid as:animator:
                 - define keyframes <[animator.keyframes]>
@@ -127,10 +127,9 @@ pmodels_load_bbmodel:
                         - define anim_map.data <[data_points.x]>,<[data_points.y]>,<[data_points.z]>
                     - define anim_map.time <[keyframe.time]>
                     - define anim_map.interpolation <[keyframe.interpolation]>
-                    - define anim_data.animators.<[uuid]>.frames:->:<[anim_map]>
+                    - define animators.<[animation.name]>.animators.<[uuid]>.frames:->:<[anim_map]>
                 #Time sort
-                - define anim_data.animators.<[uuid]>.frames <[anim_data.animators.<[uuid]>.frames].sort_by_value[get[time]]>
-            - define animators.<[animation.name]> <[anim_data]>
+                - define animators.<[animation.name]>.animators.<[uuid]>.frames <[animators.<[animation.name]>.animators.<[uuid]>.frames].sort_by_value[get[time]]>
         # =============== Item model file generation ===============
         - if <server.has_file[<[override_item_filepath]>]>:
             - ~fileread path:<[override_item_filepath]> save:override_item
