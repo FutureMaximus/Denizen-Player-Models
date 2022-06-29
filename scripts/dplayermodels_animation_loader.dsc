@@ -2,8 +2,6 @@
 # This loads animations for Denizen Player Models including any external bones utilized
 # in the animations into a resource pack
 ###########################
-#TODO:
-#- Generate animations
 
 pmodels_load_bbmodel:
     type: task
