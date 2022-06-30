@@ -1,6 +1,6 @@
 ###########################
 # This loads animations for Denizen Player Models including any external bones utilized
-# in the animations into a resource pack
+# in the animations which are then put into a resource pack
 ###########################
 
 pmodels_load_bbmodel:
@@ -17,23 +17,30 @@ pmodels_load_bbmodel:
     - define slim_path data/pmodels/templates
     - ~fileread path:<[norm_path]>/player_model_template_norm.json save:norm_read
     - ~fileread path:<[slim_path]>/player_model_template_slim.json save:slim_read
-    - define norm_data <util.parse_yaml[<entry[norm_read].data.utf8_decode>]>
-    - define slim_data <util.parse_yaml[<entry[slim_read].data.utf8_decode>]>
-    - define order <[norm_data.order]>
+    - define norm_data <util.parse_yaml[<entry[norm_read].data.utf8_decode>]||null>
+    - define slim_data <util.parse_yaml[<entry[slim_read].data.utf8_decode>]||null>
+    - if <[norm_data]> == null || <[slim_data]> == null:
+      - debug error "Could not find template files in data/pmodels/templates"
+      - stop
     - define norm_models <[norm_data.models]>
-    - define slim_order <[slim_data.order]>
     - define slim_models <[slim_data.models]>
-    #Texture path for player model
+    # Texture path for player model
     - define load_order <list[player_root|head|hip|waist|chest|right_arm|right_forearm|left_arm|left_forearm|right_leg|right_foreleg|left_leg|left_foreleg]>
-    #update
-    - foreach <[order]> as:m_id:
-      - define norm_models.<[m_id]>.type default
-      - define pmodel_parts_norm.<[m_id]> <[norm_models.<[m_id]>]>
-    #ex
-    #- foreach <[external_bones]> key:uuid as:bone:
-    #  - define pmodel_parts_norm.<[uuid]> <[bone]>
+    - foreach <[load_order]> as:tex_name:
+      # Norm
+      - foreach <[norm_models]> key:uuid as:model:
+        - if <[model.name]> == <[tex_name]>:
+          - define norm_models.<[uuid]>.type default
+          - define pmodel_parts_norm.<[uuid]> <[norm_models.<[uuid]>]>
+      # Slim
+      - foreach <[slim_models]> key:uuid as:model:
+        - if <[model.name]> == <[tex_name]>:
+          - define slim_models.<[uuid]>.type default
+          - define pmodel_parts_slim.<[uuid]> <[slim_models.<[uuid]>]>
     - flag server pmodels_data.model_player_model_template_norm:<[pmodel_parts_norm]>
-    - ~filewrite path:data/pmodels/debug_data/player_models_norm.json data:<server.flag[pmodels_data.model_player_model_template_norm].to_json[native_types=true;indent=4].utf8_encode>
+    - flag server pmodels_data.model_player_model_template_slim:<[pmodel_parts_slim]>
+    ##Debug
+    #- ~filewrite path:data/pmodels/debug_data/player_models_norm.json data:<server.flag[pmodels_data.model_player_model_template_norm].to_json[native_types=true;indent=4].utf8_encode>
     #- ~filewrite path:data/pmodels/debug_data/player_models_slim.json data:<server.flag[pmodels_data.model_player_model_template_slim].to_json[native_types=true;indent=4].utf8_encode>
     # ============== Animation Gathering ===============
     - define animation_files <server.list_files[data/pmodels/animations]||null>
@@ -139,7 +146,7 @@ pmodels_load_bbmodel:
             - define animation_list.<[animation.name]>.blend_weight <[animation.blend_weight]>
             - define animation_list.<[animation.name]>.length <[animation.length]>
             - define animator_data <[animation.animators]>
-            #If the animation contains the outliners gather their data otherwise make an empty frame
+            # If the animation contains the outliners gather the data otherwise make an empty frame
             - foreach <server.flag[pmodels_data.temp_<[animation_file]>.raw_outlines]> key:o_uuid as:outline_data:
               - define animator <[animator_data.<[o_uuid]>]||null>
               - if <[animator]> != null:
@@ -220,11 +227,10 @@ pmodels_load_bbmodel:
                     - define outline.type external
             # Exclude player model bones
             - define find <script[pmodels_excluded_bones].data_key[bones].find[<[outline.name]>]>
-            #- if <[find]> == -1:
-                #- define external_bones.<[outline.uuid]>.<[outline]>
+            - if <[find]> == -1:
                 ## This sets the actual live usage flag data for external bones should they exist
-                #- flag server pmodels_data.model_player_model_template_norm.<[outline.uuid]>:<[outline]>
-                #- flag server pmodels_data.model_player_model_template_slim.<[outline.uuid]>:<[outline]>
+                - flag server pmodels_data.model_player_model_template_norm.<[outline.uuid]>:<[outline]>
+                - flag server pmodels_data.model_player_model_template_slim.<[outline.uuid]>:<[outline]>
         - if <[overrides_changed]>:
             - ~filewrite path:<[override_item_filepath]> data:<[override_item_data].to_json[native_types=true;indent=4].utf8_encode>
         # Final clear of temp data
