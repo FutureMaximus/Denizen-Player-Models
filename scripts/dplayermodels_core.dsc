@@ -133,7 +133,6 @@ pmodels_animate:
         - define anim_part_look <[animation_data.animators.<[id]>]||null>
         #if the animation uses the external bone
         - if <[anim_part_look]> != null:
-          - narrate PART
           - if !<[part.item].exists>:
               - foreach next
           #15.98 div offset
