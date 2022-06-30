@@ -7,41 +7,13 @@ pmodels_load_bbmodel:
     type: task
     debug: false
     script:
+    #TODO:
+    #- Fix issue where external bones attached to player model bones messes it up
     # =============== Clear out pre-existing data ===============
     - flag server pmodels_data.model_player_model_template_norm:!
     - flag server pmodels_data.model_player_model_template_slim:!
     - flag server pmodels_data.animations_player_model_template_norm:!
     - flag server pmodels_data.animations_player_model_template_slim:!
-    # ============= Template Loading ===============
-    - define norm_path data/pmodels/templates
-    - define slim_path data/pmodels/templates
-    - ~fileread path:<[norm_path]>/player_model_template_norm.json save:norm_read
-    - ~fileread path:<[slim_path]>/player_model_template_slim.json save:slim_read
-    - define norm_data <util.parse_yaml[<entry[norm_read].data.utf8_decode>]||null>
-    - define slim_data <util.parse_yaml[<entry[slim_read].data.utf8_decode>]||null>
-    - if <[norm_data]> == null || <[slim_data]> == null:
-      - debug error "Could not find template files in data/pmodels/templates"
-      - stop
-    - define norm_models <[norm_data.models]>
-    - define slim_models <[slim_data.models]>
-    # Texture path for player model
-    - define load_order <list[player_root|head|hip|waist|chest|right_arm|right_forearm|left_arm|left_forearm|right_leg|right_foreleg|left_leg|left_foreleg]>
-    - foreach <[load_order]> as:tex_name:
-      # Norm
-      - foreach <[norm_models]> key:uuid as:model:
-        - if <[model.name]> == <[tex_name]>:
-          - define norm_models.<[uuid]>.type default
-          - define pmodel_parts_norm.<[uuid]> <[norm_models.<[uuid]>]>
-      # Slim
-      - foreach <[slim_models]> key:uuid as:model:
-        - if <[model.name]> == <[tex_name]>:
-          - define slim_models.<[uuid]>.type default
-          - define pmodel_parts_slim.<[uuid]> <[slim_models.<[uuid]>]>
-    - flag server pmodels_data.model_player_model_template_norm:<[pmodel_parts_norm]>
-    - flag server pmodels_data.model_player_model_template_slim:<[pmodel_parts_slim]>
-    ##Debug
-    #- ~filewrite path:data/pmodels/debug_data/player_models_norm.json data:<server.flag[pmodels_data.model_player_model_template_norm].to_json[native_types=true;indent=4].utf8_encode>
-    #- ~filewrite path:data/pmodels/debug_data/player_models_slim.json data:<server.flag[pmodels_data.model_player_model_template_slim].to_json[native_types=true;indent=4].utf8_encode>
     # ============== Animation Gathering ===============
     - define animation_files <server.list_files[data/pmodels/animations]||null>
     - if <[animation_files]> == null:
@@ -166,7 +138,7 @@ pmodels_load_bbmodel:
               - else:
                 - define animation_list.<[animation.name]>.animators.<[o_uuid]>.frames <list>
                 ##Debug
-                #- ~filewrite path:data/pmodels/debug_data/<[animation.name]>.json data:<[animators.<[animation.name]>].to_json[native_types=true;indent=4].utf8_encode>
+                #- ~filewrite path:data/pmodels/debug_data/<[animation.name]>.json data:<[animation_list.<[animation.name]>].to_json[native_types=true;indent=4].utf8_encode>
         # =============== Item model file generation ===============
         - if <server.has_file[<[override_item_filepath]>]>:
             - ~fileread path:<[override_item_filepath]> save:override_item
@@ -238,6 +210,34 @@ pmodels_load_bbmodel:
     # Set the animations
     - flag server pmodels_data.animations_player_model_template_norm:<[animation_list]>
     - flag server pmodels_data.animations_player_model_template_slim:<[animation_list]>
+    # ============= Template Loading ===============
+    - define norm_path data/pmodels/templates
+    - define slim_path data/pmodels/templates
+    - ~fileread path:<[norm_path]>/player_model_template_norm.json save:norm_read
+    - ~fileread path:<[slim_path]>/player_model_template_slim.json save:slim_read
+    - define norm_data <util.parse_yaml[<entry[norm_read].data.utf8_decode>]||null>
+    - define slim_data <util.parse_yaml[<entry[slim_read].data.utf8_decode>]||null>
+    - if <[norm_data]> == null || <[slim_data]> == null:
+      - debug error "Could not find template files in data/pmodels/templates"
+      - stop
+    - define norm_models <[norm_data.models]>
+    - define slim_models <[slim_data.models]>
+    # Texture path for player model
+    - define load_order <list[player_root|head|hip|waist|chest|right_arm|right_forearm|left_arm|left_forearm|right_leg|right_foreleg|left_leg|left_foreleg]>
+    - foreach <[load_order]> as:tex_name:
+      # Norm
+      - foreach <[norm_models]> key:uuid as:model:
+        - if <[model.name]> == <[tex_name]>:
+          - define norm_models.<[uuid]>.type default
+          - flag server pmodels_data.model_player_model_template_norm.<[uuid]>:<[norm_models.<[uuid]>]>
+      # Slim
+      - foreach <[slim_models]> key:uuid as:model:
+        - if <[model.name]> == <[tex_name]>:
+          - define slim_models.<[uuid]>.type default
+          - flag server pmodels_data.model_player_model_template_slim.<[uuid]>:<[slim_models.<[uuid]>]>
+    ##Debug
+    #- ~filewrite path:data/pmodels/debug_data/player_models_norm.json data:<server.flag[pmodels_data.model_player_model_template_norm].to_json[native_types=true;indent=4].utf8_encode>
+    #- ~filewrite path:data/pmodels/debug_data/player_models_slim.json data:<server.flag[pmodels_data.model_player_model_template_slim].to_json[native_types=true;indent=4].utf8_encode>
 
 # Bones that cannot be generated in the resource pack
 pmodels_excluded_bones:
