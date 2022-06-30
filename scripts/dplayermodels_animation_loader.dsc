@@ -7,8 +7,6 @@ pmodels_load_bbmodel:
     type: task
     debug: false
     script:
-    #TODO:
-    #- Fix issue where external bones attached to player model bones messes it up
     # =============== Clear out pre-existing data ===============
     - flag server pmodels_data.model_player_model_template_norm:!
     - flag server pmodels_data.model_player_model_template_slim:!
