@@ -12,6 +12,29 @@ pmodels_load_bbmodel:
     - flag server pmodels_data.model_player_model_template_slim:!
     - flag server pmodels_data.animations_player_model_template_norm:!
     - flag server pmodels_data.animations_player_model_template_slim:!
+    # ============= Template Loading ===============
+    - define norm_path data/pmodels/templates
+    - define slim_path data/pmodels/templates
+    - ~fileread path:<[norm_path]>/player_model_template_norm.json save:norm_read
+    - ~fileread path:<[slim_path]>/player_model_template_slim.json save:slim_read
+    - define norm_data <util.parse_yaml[<entry[norm_read].data.utf8_decode>]>
+    - define slim_data <util.parse_yaml[<entry[slim_read].data.utf8_decode>]>
+    - define order <[norm_data.order]>
+    - define norm_models <[norm_data.models]>
+    - define slim_order <[slim_data.order]>
+    - define slim_models <[slim_data.models]>
+    #Texture path for player model
+    - define load_order <list[player_root|head|hip|waist|chest|right_arm|right_forearm|left_arm|left_forearm|right_leg|right_foreleg|left_leg|left_foreleg]>
+    #update
+    - foreach <[order]> as:m_id:
+      - define norm_models.<[m_id]>.type default
+      - define pmodel_parts_norm.<[m_id]> <[norm_models.<[m_id]>]>
+    #ex
+    #- foreach <[external_bones]> key:uuid as:bone:
+    #  - define pmodel_parts_norm.<[uuid]> <[bone]>
+    - flag server pmodels_data.model_player_model_template_norm:<[pmodel_parts_norm]>
+    - ~filewrite path:data/pmodels/debug_data/player_models_norm.json data:<server.flag[pmodels_data.model_player_model_template_norm].to_json[native_types=true;indent=4].utf8_encode>
+    #- ~filewrite path:data/pmodels/debug_data/player_models_slim.json data:<server.flag[pmodels_data.model_player_model_template_slim].to_json[native_types=true;indent=4].utf8_encode>
     # ============== Animation Gathering ===============
     - define animation_files <server.list_files[data/pmodels/animations]||null>
     - if <[animation_files]> == null:
@@ -110,13 +133,16 @@ pmodels_load_bbmodel:
                 - run pmodels_loader_readoutline def.animation_file:<[animation_file]> def.outline:<[outliner]>
         # =============== Animations loading ===============
         - foreach <[data.animations]||<list>> as:animation:
-            - define animators.<[animation.name]>.loop <[animation.loop]>
-            - define animators.<[animation.name]>.override <[animation.override]>
-            - define animators.<[animation.name]>.anim_time_update <[animation.anim_time_update]>
-            - define animators.<[animation.name]>.blend_weight <[animation.blend_weight]>
-            - define animators.<[animation.name]>.length <[animation.length]>
+            - define animation_list.<[animation.name]>.loop <[animation.loop]>
+            - define animation_list.<[animation.name]>.override <[animation.override]>
+            - define animation_list.<[animation.name]>.anim_time_update <[animation.anim_time_update]>
+            - define animation_list.<[animation.name]>.blend_weight <[animation.blend_weight]>
+            - define animation_list.<[animation.name]>.length <[animation.length]>
             - define animator_data <[animation.animators]>
-            - foreach <[animator_data]> key:uuid as:animator:
+            #If the animation contains the outliners gather their data otherwise make an empty frame
+            - foreach <server.flag[pmodels_data.temp_<[animation_file]>.raw_outlines]> key:o_uuid as:outline_data:
+              - define animator <[animator_data.<[o_uuid]>]||null>
+              - if <[animator]> != null:
                 - define keyframes <[animator.keyframes]>
                 - foreach <[keyframes]> as:keyframe:
                     - define anim_map.channel <[keyframe.channel].to_uppercase>
@@ -127,9 +153,13 @@ pmodels_load_bbmodel:
                         - define anim_map.data <[data_points.x]>,<[data_points.y]>,<[data_points.z]>
                     - define anim_map.time <[keyframe.time]>
                     - define anim_map.interpolation <[keyframe.interpolation]>
-                    - define animators.<[animation.name]>.animators.<[uuid]>.frames:->:<[anim_map]>
+                    - define animation_list.<[animation.name]>.animators.<[o_uuid]>.frames:->:<[anim_map]>
                 #Time sort
-                - define animators.<[animation.name]>.animators.<[uuid]>.frames <[animators.<[animation.name]>.animators.<[uuid]>.frames].sort_by_value[get[time]]>
+                - define animation_list.<[animation.name]>.animators.<[o_uuid]>.frames <[animation_list.<[animation.name]>.animators.<[o_uuid]>.frames].sort_by_value[get[time]]>
+              - else:
+                - define animation_list.<[animation.name]>.animators.<[o_uuid]>.frames <list>
+                ##Debug
+                #- ~filewrite path:data/pmodels/debug_data/<[animation.name]>.json data:<[animators.<[animation.name]>].to_json[native_types=true;indent=4].utf8_encode>
         # =============== Item model file generation ===============
         - if <server.has_file[<[override_item_filepath]>]>:
             - ~fileread path:<[override_item_filepath]> save:override_item
@@ -190,42 +220,18 @@ pmodels_load_bbmodel:
                     - define outline.type external
             # Exclude player model bones
             - define find <script[pmodels_excluded_bones].data_key[bones].find[<[outline.name]>]>
-            - if <[find]> == -1:
-                # This sets the actual live usage flag data for external bones should they exist
-                - flag server pmodels_data.model_player_model_template_norm.<[outline.uuid]>:<[outline]>
-                - flag server pmodels_data.model_player_model_template_slim.<[outline.uuid]>:<[outline]>
+            #- if <[find]> == -1:
+                #- define external_bones.<[outline.uuid]>.<[outline]>
+                ## This sets the actual live usage flag data for external bones should they exist
+                #- flag server pmodels_data.model_player_model_template_norm.<[outline.uuid]>:<[outline]>
+                #- flag server pmodels_data.model_player_model_template_slim.<[outline.uuid]>:<[outline]>
         - if <[overrides_changed]>:
             - ~filewrite path:<[override_item_filepath]> data:<[override_item_data].to_json[native_types=true;indent=4].utf8_encode>
         # Final clear of temp data
         - flag server pmodels_data.temp_<[animation_file]>:!
     # Set the animations
-    - flag server pmodels_data.animations_player_model_template_norm:<[animators]>
-    - flag server pmodels_data.animations_player_model_template_slim:<[animators]>
-    # ============= Template Loading ===============
-    - define norm_path data/pmodels/templates
-    - define slim_path data/pmodels/templates
-    - ~fileread path:<[norm_path]>/player_model_template_norm.json save:norm_read
-    - ~fileread path:<[slim_path]>/player_model_template_slim.json save:slim_read
-    - define norm_data <util.parse_yaml[<entry[norm_read].data.utf8_decode>]>
-    - define slim_data <util.parse_yaml[<entry[slim_read].data.utf8_decode>]>
-    #Texture path for player model
-    - define load_order <list[player_root|head|hip|waist|chest|right_arm|right_forearm|left_arm|left_forearm|right_leg|right_foreleg|left_leg|left_foreleg]>
-    - foreach <[load_order]> as:part_name:
-      #Norm
-      - foreach <[norm_data.models]> key:uuid as:model:
-        - if <[model.name]> == <[part_name]>:
-          - define new_model_list_norm.<[uuid]> <[model]>
-      #Slim
-      - foreach <[slim_data.models]> key:uuid as:model:
-        - if <[model.name]> == <[part_name]>:
-          - define new_model_list_slim.<[uuid]> <[model]>
-    #Set the new data
-    - foreach <[new_model_list_norm]> key:uuid as:model:
-      - define model.type default
-      - flag server pmodels_data.model_player_model_template_norm.<[uuid]>:<[model]>
-    - foreach <[new_model_list_slim]> key:uuid as:model:
-      - define model.type default
-      - flag server pmodels_data.model_player_model_template_slim.<[uuid]>:<[model]>
+    - flag server pmodels_data.animations_player_model_template_norm:<[animation_list]>
+    - flag server pmodels_data.animations_player_model_template_slim:<[animation_list]>
 
 # Bones that cannot be generated in the resource pack
 pmodels_excluded_bones:
