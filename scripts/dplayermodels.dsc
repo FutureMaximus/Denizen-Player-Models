@@ -76,7 +76,7 @@ pmodel_config:
     #reload scripts on player model reload (Should only be true when debugging)
     reload_scripts: true
     #item to use for external bones
-    item: potion
+    item: arrow
 
 #command for ops only (here you can reload the animations)
 #/pmodel reload or /denizenplayermodels reload
