@@ -41,122 +41,6 @@ pmodel_part_stand_small:
         is_small: true
         invulnerable: true
 
-pmodels_load_animation:
-    type: task
-    definitions: type
-    debug: false
-    script:
-    - define yamlid pmodels_player_template
-    - choose <[type]>:
-      - case classic:
-        - define filename player_models/templates/player_model_template_norm.pmodel.yml
-      - case slim:
-        - define filename player_models/templates/player_model_template_slim.pmodel.yml
-      - default:
-        - debug error "[Denizen Player Models] Must specify classic or slim model type."
-        - stop
-    - ~yaml id:<[yamlid]> load:<[filename]>
-    - define order <yaml[<[yamlid]>].read[order]>
-    - define parts <yaml[<[yamlid]>].read[models]>
-    - yaml unload id:<[yamlid]>
-    - foreach <[order]> as:id:
-        - define raw_parts.<[id]> <[parts.<[id]>]>
-    #look for animation files
-    - define animation_files <server.list_files[player_models/animations].if_null[n]>
-    - if <[animation_files].is_empty>:
-      - debug error "[Denizen Player Models] There are no animations in "player_models/animations""
-      - narrate "[Denizen Player Models] <red>No animations found in player_models/animations"
-      - stop
-    - else if <[animation_files].equals[n]>:
-      - debug error "[Denizen Player Models] Could not find folder "player_models/animations""
-      - narrate "[Denizen Player Models] <red>Could not find folder player_models/animations"
-      - stop
-    #gather animations from the animation files
-    - foreach <[animation_files]> as:anim_file:
-      - yaml create id:file_<[anim_file]>
-      - ~yaml id:file_<[anim_file]> load:player_models/animations/<[anim_file]>
-      - define animations <yaml[file_<[anim_file]>].read[animations]||<map>>
-      #gather external bones should there be any
-      - define extern_order <yaml[file_<[anim_file]>].read[order]>
-      - define extern_parts <yaml[file_<[anim_file]>].read[models]>
-      - foreach <[extern_parts]> key:id as:part:
-        - choose <[part.name]>:
-          - case player_root:
-            - foreach next
-          - case head:
-            - foreach next
-          - case hip:
-            - foreach next
-          - case waist:
-            - foreach next
-          - case chest:
-            - foreach next
-          - case right_arm:
-            - foreach next
-          - case right_forearm:
-            - foreach next
-          - case left_arm:
-            - foreach next
-          - case left_forearm:
-            - foreach next
-          - case right_leg:
-            - foreach next
-          - case right_foreleg:
-            - foreach next
-          - case left_leg:
-            - foreach next
-          - case left_foreleg:
-            - foreach next
-          - default:
-            - define extern_list:->:<[id]>
-            - define new_extern_parts.<[id]> <[extern_parts.<[id]>]>
-      #animations
-      - foreach <[animations]> key:name as:anim:
-        - foreach <[order]> as:id:
-            - if <[anim.animators].contains[<[id]>]>:
-                - define raw_animators.<[id]>.frames <[anim.animators.<[id]>.frames].sort_by_value[get[time]]>
-            - else:
-                - define raw_animators.<[id]> <map[frames=<list>]>
-        #input external bone animations should they exist
-        - if !<[extern_list].is_empty>:
-          - foreach <[extern_list]> as:extern_id:
-              - foreach <[extern_parts]> key:ex_part_id as:part:
-                - if <[ex_part_id]> == <[extern_id]>:
-                  - define anim.external_bones <[ex_part_id]>
-                  - if <[anim.animators].contains[<[ex_part_id]>]>:
-                      - define raw_animators.<[ex_part_id]>.frames <[anim.animators.<[ex_part_id]>.frames].sort_by_value[get[time]]>
-                  - else:
-                      - define raw_animators.<[ex_part_id]> <map[frames=<list>]>
-        - define anim.animators <[raw_animators]>
-        - define raw_animations.<[name]> <[anim]>
-      - yaml unload id:file_<[anim_file]>
-    #models
-    #new path for texture on player model (doing it in the template file caused the head to be underneath the model a big no no)
-    - define load_order <list[player_root|head|hip|waist|chest|right_arm|right_forearm|left_arm|left_forearm|right_leg|right_foreleg|left_leg|left_foreleg]>
-    - foreach <[load_order]> as:tex_name:
-        - foreach <[raw_parts]> key:id as:part:
-            - define name <[part.name]>
-            #type default is for the player model
-            - define parts.<[id]>.type default
-            - if <[tex_name]> == <[name]>:
-              - define new_list.<[id]> <[parts.<[id]>]>
-              - foreach stop
-    - if !<[extern_list].is_empty>:
-      - foreach <[extern_list]> as:extern_id:
-        - foreach <[new_extern_parts]> key:ex_id as:part:
-          - if <[extern_id]> == <[ex_id]>:
-            #type external is for external bones (ones that use armorstand head instead of right hand)
-            - define new_extern_parts.<[ex_id]>.type external
-            - define new_list.<[ex_id]> <[new_extern_parts.<[ex_id]>]>
-    - define raw_parts <[new_list]>
-    - choose <[type]>:
-      - case classic:
-        - flag server pmodels_data.model_player_model_template_norm:<[raw_parts]>
-        - flag server pmodels_data.animations_player_model_template_norm:<[raw_animations]>
-      - case slim:
-        - flag server pmodels_data.model_player_model_template_slim:<[raw_parts]>
-        - flag server pmodels_data.animations_player_model_template_slim:<[raw_animations]>
-
 pmodels_spawn_model:
     type: task
     debug: false
@@ -224,8 +108,8 @@ pmodels_spawn_model:
         - flag <entry[root].spawned_entity> pmodel_parts:->:<entry[spawned].spawned_entity>
         - flag <entry[root].spawned_entity> pmodel_anim_part.<[id]>:->:<entry[spawned].spawned_entity>
     - flag <[root_entity]> skin_type:<[skin_type]>
-    - define external_parts <[external_parts].if_null[n]>
-    - if !<[external_parts].equals[n]>:
+    - define external_parts <[external_parts]||null>
+    - if <[external_parts]> != null:
       - flag <[root_entity]> external_parts:<[external_parts]>
     - determine <[root_entity]>
 
@@ -236,41 +120,43 @@ pmodels_animate:
     script:
     - run pmodels_reset_model_position def.root_entity:<[root_entity]>
     - define animation_data <server.flag[pmodels_data.animations_<[root_entity].flag[pmodel_model_id]>.<[animation]>]||null>
+    - ~filewrite path:data/pmodels/debug_data/animation_data.json data:<[animation_data].to_json[native_types=true;indent=4].utf8_encode>
     - if <[animation_data]> == null:
         - debug error "[Denizen Player Models] <red>Cannot animate entity <[root_entity].uuid> due to model <[root_entity].flag[pmodel_model_id]> not having an animation named <[animation]>."
         - stop
     #spawn external bones if they exist in the animation
-    - define extern_anim_parts <[animation_data.external_bones].if_null[n]>
-    - if <[root_entity].has_flag[external_parts]> && !<[extern_anim_parts].equals[n]>:
+    - if <[root_entity].has_flag[external_parts]>:
       - define center <[root_entity].location.with_pitch[0].below[0.7]>
       - define yaw_mod <[root_entity].location.yaw.add[180].to_radians>
-      - foreach <[extern_anim_parts]> as:extern_id:
-        - foreach <[root_entity].flag[external_parts]> key:id as:part:
-          #if the animation uses the external bone
-          - if <[extern_id]> == <[id]>:
-            - if !<[part.item].exists>:
-                - foreach next
-            #15.98 div offset
-            - define offset <location[<[part.origin]>].div[15.98]>
-            - define rots <[part.rotation].split[,].parse[to_radians]>
-            - define pose <[rots].get[1].mul[-1]>,<[rots].get[2].mul[-1]>,<[rots].get[3]>
-            - spawn pmodel_part_stand_small[armor_pose=[head=<[pose]>];tracking_range=256] <[center].add[<[offset].rotate_around_y[<[yaw_mod].mul[-1]>]>]> save:spawned
-            #fakeequip if show_to is being used
-            - define show_to <player[<[show_to]>].if_null[n]>
-            - if !<[show_to].equals[n]>:
-              - fakeequip <entry[spawned].spawned_entity> for:<[show_to]> head:<item[<[part.item]>]>
-            - else:
-              - equip <entry[spawned].spawned_entity> head:<item[<[part.item]>]>
-            - flag <entry[spawned].spawned_entity> pmodel_def_pose:<[pose]>
-            - define name <[part.name]>
-            - flag <entry[spawned].spawned_entity> pmodel_def_name:<[name]>
-            - flag <entry[spawned].spawned_entity> pmodel_def_item:<item[<[part.item]>]>
-            - flag <entry[spawned].spawned_entity> pmodel_def_offset:<[offset]>
-            - flag <entry[spawned].spawned_entity> pmodel_root:<[root_entity]>
-            - flag <entry[spawned].spawned_entity> pmodel_def_type:external
-            - flag <[root_entity]> pmodel_parts:->:<entry[spawned].spawned_entity>
-            - flag <[root_entity]> pmodel_external_parts:->:<entry[spawned].spawned_entity>
-            - flag <[root_entity]> pmodel_anim_part.<[id]>:->:<entry[spawned].spawned_entity>
+      - foreach <[root_entity].flag[external_parts]> key:id as:part:
+        #Look for external bones in the animation
+        - define anim_part_look <[animation_data.animators.<[id]>]||null>
+        #if the animation uses the external bone
+        - if <[anim_part_look]> != null:
+          - narrate PART
+          - if !<[part.item].exists>:
+              - foreach next
+          #15.98 div offset
+          - define offset <location[<[part.origin]>].div[15.98]>
+          - define rots <[part.rotation].split[,].parse[to_radians]>
+          - define pose <[rots].get[1].mul[-1]>,<[rots].get[2].mul[-1]>,<[rots].get[3]>
+          - spawn pmodel_part_stand_small[armor_pose=[head=<[pose]>];tracking_range=256] <[center].add[<[offset].rotate_around_y[<[yaw_mod].mul[-1]>]>]> save:spawned
+          #fakeequip if show_to is being used
+          - define show_to <player[<[show_to]>].if_null[n]>
+          - if !<[show_to].equals[n]>:
+            - fakeequip <entry[spawned].spawned_entity> for:<[show_to]> head:<item[<[part.item]>]>
+          - else:
+            - equip <entry[spawned].spawned_entity> head:<item[<[part.item]>]>
+          - flag <entry[spawned].spawned_entity> pmodel_def_pose:<[pose]>
+          - define name <[part.name]>
+          - flag <entry[spawned].spawned_entity> pmodel_def_name:<[name]>
+          - flag <entry[spawned].spawned_entity> pmodel_def_item:<item[<[part.item]>]>
+          - flag <entry[spawned].spawned_entity> pmodel_def_offset:<[offset]>
+          - flag <entry[spawned].spawned_entity> pmodel_root:<[root_entity]>
+          - flag <entry[spawned].spawned_entity> pmodel_def_type:external
+          - flag <[root_entity]> pmodel_parts:->:<entry[spawned].spawned_entity>
+          - flag <[root_entity]> pmodel_external_parts:->:<entry[spawned].spawned_entity>
+          - flag <[root_entity]> pmodel_anim_part.<[id]>:->:<entry[spawned].spawned_entity>
     - flag <[root_entity]> pmodels_animation_id:<[animation]>
     - flag <[root_entity]> pmodels_anim_time:0
     - flag server pmodels_anim_active.<[root_entity].uuid>
@@ -466,8 +352,7 @@ pmodels_load_event:
     events:
       after server start:
       - if <script[pmodel_config].data_key[config].get[load_on_start].equals[true]>:
-        - ~run pmodels_load_animation def:classic
-        - ~run pmodels_load_animation def:slim
+        - ~run pmodels_load_bbmodel
 
 pmodels_animator:
     type: world
