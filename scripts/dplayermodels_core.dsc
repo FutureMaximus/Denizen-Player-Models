@@ -103,8 +103,7 @@ pmodels_spawn_model:
         - flag <entry[spawned].spawned_entity> pmodel_def_item:<item[<[part.item]>]>
         - flag <entry[spawned].spawned_entity> pmodel_def_offset:<[offset]>
         - flag <entry[spawned].spawned_entity> pmodel_root:<entry[root].spawned_entity>
-        - if <[part.type]> == default:
-          - flag <entry[spawned].spawned_entity> pmodel_def_type:<[part.type]>
+        - flag <entry[spawned].spawned_entity> pmodel_def_type:default
         - flag <entry[root].spawned_entity> pmodel_parts:->:<entry[spawned].spawned_entity>
         - flag <entry[root].spawned_entity> pmodel_anim_part.<[id]>:->:<entry[spawned].spawned_entity>
     - flag <[root_entity]> skin_type:<[skin_type]>
@@ -225,7 +224,6 @@ pmodels_move_to_frame:
             - case hold:
                 - define timespot <[animation_data.length]>
                 - flag server pmodels_anim_active.<[root_entity].uuid>:!
-    - define center <[root_entity].location.with_pitch[0].below[1.379].relative[0.32,0,0]>
     - define yaw_mod <[root_entity].location.yaw.add[180].to_radians>
     - define parentage <map>
     - foreach <[animation_data.animators]> key:part_id as:animator:
@@ -283,6 +281,7 @@ pmodels_move_to_frame:
         - foreach <[root_entity].flag[pmodel_anim_part.<[part_id]>]||<list>> as:ent:
             - choose <[ent].flag[pmodel_def_type]>:
               - case default:
+                - define center <[root_entity].location.with_pitch[0].below[1.379].relative[0.32,0,0]>
                 - teleport <[ent]> <[center].add[<[new_pos].div[15.98].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
               - case external:
                 - define center <[root_entity].location.with_pitch[0].below[0.7]>
