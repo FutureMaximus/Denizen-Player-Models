@@ -119,7 +119,6 @@ pmodels_animate:
     script:
     - run pmodels_reset_model_position def.root_entity:<[root_entity]>
     - define animation_data <server.flag[pmodels_data.animations_<[root_entity].flag[pmodel_model_id]>.<[animation]>]||null>
-    - ~filewrite path:data/pmodels/debug_data/animation_data.json data:<[animation_data].to_json[native_types=true;indent=4].utf8_encode>
     - if <[animation_data]> == null:
         - debug error "[Denizen Player Models] <red>Cannot animate entity <[root_entity].uuid> due to model <[root_entity].flag[pmodel_model_id]> not having an animation named <[animation]>."
         - stop
