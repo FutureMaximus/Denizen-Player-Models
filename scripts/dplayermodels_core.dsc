@@ -48,6 +48,7 @@ pmodels_spawn_model:
     script:
     - define npc <npc[<[player]>].if_null[n]>
     - define player <player[<[player]>].if_null[n]>
+    - define show_to <[show_to]||null>
     - if <[player].equals[n]> && <[npc].equals[n]>:
       - debug error "[Denizen Player Models] Must specify a player."
       - stop
@@ -75,8 +76,6 @@ pmodels_spawn_model:
     - spawn pmodel_part_stand <[location]> save:root
     - define root_entity <entry[root].spawned_entity>
     - flag <entry[root].spawned_entity> pmodel_model_id:<[model_name]>
-    #if show_to is being utilized determine if it is a player
-    - define show_to <player[<[show_to]>].if_null[n]>
     - foreach <server.flag[pmodels_data.model_<[model_name]>]> key:id as:part:
         - if !<[part.item].exists>:
             - foreach next
@@ -93,7 +92,9 @@ pmodels_spawn_model:
         - adjust <item[<[part.item]>]> skull_skin:<[player].skull_skin> save:item
         - define part.item <entry[item].result>
         #fakeequip if show_to is being used
-        - if !<[show_to].equals[n]>:
+        - if <player[<[show_to]>]||null> != null:
+          - if !<[root_entity].has_flag[show_to]>:
+            - flag <[root_entity]> show_to:<[show_to]>
           - fakeequip <entry[spawned].spawned_entity> for:<[show_to]> hand:<[part.item]>
         - else:
           - equip <entry[spawned].spawned_entity> right_arm:<[part.item]>
@@ -115,13 +116,18 @@ pmodels_spawn_model:
 pmodels_animate:
     type: task
     debug: false
-    definitions: root_entity|animation|show_to
+    definitions: root_entity|animation
     script:
     - run pmodels_reset_model_position def.root_entity:<[root_entity]>
     - define animation_data <server.flag[pmodels_data.animations_<[root_entity].flag[pmodel_model_id]>.<[animation]>]||null>
     - if <[animation_data]> == null:
         - debug error "[Denizen Player Models] <red>Cannot animate entity <[root_entity].uuid> due to model <[root_entity].flag[pmodel_model_id]> not having an animation named <[animation]>."
         - stop
+    #Show to
+    - if <[root_entity].has_flag[show_to]>:
+      - define show_to <[root_entity].flag[show_to]>
+    - else:
+      - define show_to null
     #spawn external bones if they exist in the animation
     - if <[root_entity].has_flag[external_parts]>:
       - define center <[root_entity].location.with_pitch[0].below[0.7]>
@@ -138,9 +144,7 @@ pmodels_animate:
           - define rots <[part.rotation].split[,].parse[to_radians]>
           - define pose <[rots].get[1].mul[-1]>,<[rots].get[2].mul[-1]>,<[rots].get[3]>
           - spawn pmodel_part_stand_small[armor_pose=[head=<[pose]>];tracking_range=256] <[center].add[<[offset].rotate_around_y[<[yaw_mod].mul[-1]>]>]> save:spawned
-          #fakeequip if show_to is being used
-          - define show_to <player[<[show_to]>].if_null[n]>
-          - if !<[show_to].equals[n]>:
+          - if <[show_to]> != null:
             - fakeequip <entry[spawned].spawned_entity> for:<[show_to]> head:<item[<[part.item]>]>
           - else:
             - equip <entry[spawned].spawned_entity> head:<item[<[part.item]>]>
