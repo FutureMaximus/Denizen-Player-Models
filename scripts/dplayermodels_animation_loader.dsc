@@ -110,6 +110,7 @@ pmodels_load_bbmodel:
                 - run pmodels_loader_readoutline def.animation_file:<[animation_file]> def.outline:<[outliner]>
         # =============== Animations loading ===============
         - foreach <[data.animations]||<list>> as:animation:
+            - define anim_count:++
             - define animation_list.<[animation.name]>.loop <[animation.loop]>
             - define animation_list.<[animation.name]>.override <[animation.override]>
             - define animation_list.<[animation.name]>.anim_time_update <[animation.anim_time_update]>
@@ -135,8 +136,6 @@ pmodels_load_bbmodel:
                 - define animation_list.<[animation.name]>.animators.<[o_uuid]>.frames <[animation_list.<[animation.name]>.animators.<[o_uuid]>.frames].sort_by_value[get[time]]>
               - else:
                 - define animation_list.<[animation.name]>.animators.<[o_uuid]>.frames <list>
-                ##Debug
-                #- ~filewrite path:data/pmodels/debug_data/<[animation.name]>.json data:<[animation_list.<[animation.name]>].to_json[native_types=true;indent=4].utf8_encode>
         # =============== Item model file generation ===============
         - if <server.has_file[<[override_item_filepath]>]>:
             - ~fileread path:<[override_item_filepath]> save:override_item
@@ -198,6 +197,7 @@ pmodels_load_bbmodel:
             # Exclude player model bones
             - define find <script[pmodels_excluded_bones].data_key[bones].find[<[outline.name]>]>
             - if <[find]> == -1:
+                - define external_count:++
                 ## This sets the actual live usage flag data for external bones should they exist
                 - flag server pmodels_data.model_player_model_template_norm.<[outline.uuid]>:<[outline]>
                 - flag server pmodels_data.model_player_model_template_slim.<[outline.uuid]>:<[outline]>
@@ -233,6 +233,10 @@ pmodels_load_bbmodel:
         - if <[model.name]> == <[tex_name]>:
           - define slim_models.<[uuid]>.type default
           - flag server pmodels_data.model_player_model_template_slim.<[uuid]>:<[slim_models.<[uuid]>]>
+    - announce to_console "[Denizen Player Models] <[anim_count]||0> Animations have been loaded."
+    - define extern_count <[external_count]||null>
+    - if <[extern_count]> != null:
+      - announce to_console "[Denizen Player Models] <[external_count]> have been loaded."
     ##Debug
     #- ~filewrite path:data/pmodels/debug_data/player_models_norm.json data:<server.flag[pmodels_data.model_player_model_template_norm].to_json[native_types=true;indent=4].utf8_encode>
     #- ~filewrite path:data/pmodels/debug_data/player_models_slim.json data:<server.flag[pmodels_data.model_player_model_template_slim].to_json[native_types=true;indent=4].utf8_encode>
