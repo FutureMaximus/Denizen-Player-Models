@@ -74,7 +74,7 @@ pmodel_config:
     #load animations on server start this should generally be kept true
     load_on_start: true
     #reload scripts on player model reload (Should only be true when debugging)
-    reload_scripts: true
+    reload_scripts: false
     #item to use for external bones
     item: arrow
 
