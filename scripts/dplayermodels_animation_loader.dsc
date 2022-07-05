@@ -236,7 +236,7 @@ pmodels_load_bbmodel:
     - announce to_console "[Denizen Player Models] <[anim_count]||0> Animations have been loaded."
     - define extern_count <[external_count]||null>
     - if <[extern_count]> != null:
-      - announce to_console "[Denizen Player Models] <[external_count]> have been loaded."
+      - announce to_console "[Denizen Player Models] <[external_count]> external bones have been loaded."
     ##Debug
     #- ~filewrite path:data/pmodels/debug_data/player_models_norm.json data:<server.flag[pmodels_data.model_player_model_template_norm].to_json[native_types=true;indent=4].utf8_encode>
     #- ~filewrite path:data/pmodels/debug_data/player_models_slim.json data:<server.flag[pmodels_data.model_player_model_template_slim].to_json[native_types=true;indent=4].utf8_encode>
