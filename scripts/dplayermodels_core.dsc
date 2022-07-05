@@ -58,7 +58,10 @@ pmodels_spawn_model:
     - if <[player].is_npc>:
       - define skin_type <proc[pmodels_skin_type].context[<[player]>]>
     - else:
-      - define skin_type <[player].flag[pmodels_skin_type]>
+      - define skin_type <[player].flag[pmodels_skin_type]||null>
+      - if <[skin_type]> == null:
+        - define skin_type <proc[pmodels_skin_type].context[<player>]>
+        - flag <player> pmodels_skin_type:<[skin_type]>
     - choose <[skin_type]>:
       - case classic:
         - define model_name player_model_template_norm
