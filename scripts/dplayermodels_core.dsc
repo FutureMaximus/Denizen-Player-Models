@@ -199,16 +199,6 @@ pmodels_reset_model_position:
             - adjust <[part]> armor_pose:[head=<[part].flag[pmodel_def_pose]>]
         - teleport <[part]> <[center].add[<[part].flag[pmodel_def_offset].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
 
-pmodels_end_animation:
-    type: task
-    debug: false
-    definitions: root_entity
-    script:
-    - flag <[root_entity]> pmodels_animation_id:!
-    - flag <[root_entity]> pmodels_anim_time:0
-    - flag server pmodels_anim_active.<[root_entity].uuid>:!
-    - run pmodels_reset_model_position def.root_entity:<[root_entity]>
-
 pmodels_move_to_frame:
     type: task
     debug: false
@@ -263,7 +253,7 @@ pmodels_move_to_frame:
                         - define p1 <[before_frame.data].as_location>
                         - define p2 <[after_frame.data].as_location>
                         - define p3 <[after_extra.data].as_location>
-                        - define data <proc[pmodels_catmullrom_proc].context[<[p0]>|<[p1]>|<[p2]>|<[p3]>|<[time_percent]>]>
+                        - define data <proc[dmodels_catmullrom_proc].context[<[p0]>|<[p1]>|<[p2]>|<[p3]>|<[time_percent]>]>
                     - case linear:
                         - define data <[after_frame.data].as_location.sub[<[before_frame.data]>].mul[<[time_percent]>].add[<[before_frame.data]>].xyz>
                     - case step:
@@ -309,44 +299,6 @@ pmodels_rot_proc:
     script:
     - determine <[loc].rotate_around_x[<[rot].x.mul[-1]>].rotate_around_y[<[rot].y.mul[-1]>].rotate_around_z[<[rot].z>]>
 
-pmodels_catmullrom_get_t:
-    type: procedure
-    debug: false
-    definitions: t|p0|p1
-    script:
-    # This is more complex for different alpha values, but alpha=1 compresses down to a '.vector_length' call conveniently
-    - determine <[p1].sub[<[p0]>].vector_length.add[<[t]>]>
-
-pmodels_catmullrom_proc:
-    type: procedure
-    debug: false
-    definitions: p0|p1|p2|p3|t
-    script:
-    # Zero distances are impossible to calculate
-    - if <[p2].sub[<[p1]>].vector_length> < 0.01:
-        - determine <[p2]>
-    # Based on https://en.wikipedia.org/wiki/Centripetal_Catmull%E2%80%93Rom_spline#Code_example_in_Unreal_C++
-    # With safety checks added for impossible situations
-    - define t0 0
-    - define t1 <proc[pmodels_catmullrom_get_t].context[0|<[p0]>|<[p1]>]>
-    - define t2 <proc[pmodels_catmullrom_get_t].context[<[t1]>|<[p1]>|<[p2]>]>
-    - define t3 <proc[pmodels_catmullrom_get_t].context[<[t2]>|<[p2]>|<[p3]>]>
-    # Divide-by-zero safety check
-    - if <[t1].abs> < 0.001 || <[t2].sub[<[t1]>].abs> < 0.001 || <[t2].abs> < 0.001 || <[t3].sub[<[t1]>].abs> < 0.001:
-        - determine <[p2].sub[<[p1]>].mul[<[t]>].add[<[p1]>]>
-    - define t <[t2].sub[<[t1]>].mul[<[t]>].add[<[t1]>]>
-    # ( t1-t )/( t1-t0 )*p0 + ( t-t0 )/( t1-t0 )*p1;
-    - define a1 <[p0].mul[<[t1].sub[<[t]>].div[<[t1]>]>].add[<[p1].mul[<[t].div[<[t1]>]>]>]>
-    # ( t2-t )/( t2-t1 )*p1 + ( t-t1 )/( t2-t1 )*p2;
-    - define a2 <[p1].mul[<[t2].sub[<[t]>].div[<[t2].sub[<[t1]>]>]>].add[<[p2].mul[<[t].sub[<[t1]>].div[<[t2].sub[<[t1]>]>]>]>]>
-    # FVector A3 = ( t3-t )/( t3-t2 )*p2 + ( t-t2 )/( t3-t2 )*p3;
-    - define a3 <[a1].mul[<[t2].sub[<[t]>].div[<[t2]>]>].add[<[a2].mul[<[t].div[<[t2]>]>]>]>
-    # FVector B1 = ( t2-t )/( t2-t0 )*A1 + ( t-t0 )/( t2-t0 )*A2;
-    - define b1 <[a1].mul[<[t2].sub[<[t]>].div[<[t2]>]>].add[<[a2].mul[<[t].div[<[t2]>]>]>]>
-    # FVector B2 = ( t3-t )/( t3-t1 )*A2 + ( t-t1 )/( t3-t1 )*A3;
-    - define b2 <[a2].mul[<[t3].sub[<[t]>].div[<[t3].sub[<[t1]>]>]>].add[<[a3].mul[<[t].sub[<[t1]>].div[<[t3].sub[<[t1]>]>]>]>]>
-    # FVector C  = ( t2-t )/( t2-t1 )*B1 + ( t-t1 )/( t2-t1 )*B2;
-    - determine <[b1].mul[<[t2].sub[<[t]>].div[<[t2].sub[<[t1]>]>]>].add[<[b2].mul[<[t].sub[<[t1]>].div[<[t2].sub[<[t1]>]>]>]>]>
 #############################
 
 ##Events ########################
