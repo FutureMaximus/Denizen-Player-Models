@@ -44,11 +44,11 @@ pmodel_part_stand_small:
 pmodels_spawn_model:
     type: task
     debug: false
-    definitions: location|player|show_to
+    definitions: location|player|fake_to
     script:
     - define npc <npc[<[player]>].if_null[n]>
     - define player <player[<[player]>].if_null[n]>
-    - define show_to <[show_to]||null>
+    - define fake_to <[fake_to]||null>
     - if <[player].equals[n]> && <[npc].equals[n]>:
       - debug error "[Denizen Player Models] Must specify a player."
       - stop
@@ -94,11 +94,11 @@ pmodels_spawn_model:
         - spawn pmodel_part_stand[armor_pose=[right_arm=<[pose]>];tracking_range=256] <[center].add[<[offset].rotate_around_y[<[yaw_mod].mul[-1]>]>]> save:spawned
         - adjust <item[<[part.item]>]> skull_skin:<[player].skull_skin> save:item
         - define part.item <entry[item].result>
-        #fakeequip if show_to is being used
-        - if <player[<[show_to]>]||null> != null:
-          - if !<[root_entity].has_flag[show_to]>:
-            - flag <[root_entity]> show_to:<[show_to]>
-          - fakeequip <entry[spawned].spawned_entity> for:<[show_to]> hand:<[part.item]>
+        #fakeequip if fake_to is being used
+        - if <player[<[fake_to]>]||null> != null:
+          - if !<[root_entity].has_flag[fake_to]>:
+            - flag <[root_entity]> fake_to:<[fake_to]>
+          - fakeequip <entry[spawned].spawned_entity> for:<[fake_to]> hand:<[part.item]>
         - else:
           - equip <entry[spawned].spawned_entity> right_arm:<[part.item]>
         - flag <entry[spawned].spawned_entity> pmodel_def_pose:<[pose]>
@@ -127,10 +127,10 @@ pmodels_animate:
         - debug error "[Denizen Player Models] <red>Cannot animate entity <[root_entity].uuid> due to model <[root_entity].flag[pmodel_model_id]> not having an animation named <[animation]>."
         - stop
     #Show to
-    - if <[root_entity].has_flag[show_to]>:
-      - define show_to <[root_entity].flag[show_to]>
+    - if <[root_entity].has_flag[fake_to]>:
+      - define fake_to <[root_entity].flag[fake_to]>
     - else:
-      - define show_to null
+      - define fake_to null
     #spawn external bones if they exist in the animation
     - if <[root_entity].has_flag[external_parts]>:
       - define center <[root_entity].location.with_pitch[0].below[0.7]>
@@ -147,8 +147,8 @@ pmodels_animate:
           - define rots <[part.rotation].split[,].parse[to_radians]>
           - define pose <[rots].get[1].mul[-1]>,<[rots].get[2].mul[-1]>,<[rots].get[3]>
           - spawn pmodel_part_stand_small[armor_pose=[head=<[pose]>];tracking_range=256] <[center].add[<[offset].rotate_around_y[<[yaw_mod].mul[-1]>]>]> save:spawned
-          - if <[show_to]> != null:
-            - fakeequip <entry[spawned].spawned_entity> for:<[show_to]> head:<item[<[part.item]>]>
+          - if <[fake_to]> != null:
+            - fakeequip <entry[spawned].spawned_entity> for:<[fake_to]> head:<item[<[part.item]>]>
           - else:
             - equip <entry[spawned].spawned_entity> head:<item[<[part.item]>]>
           - flag <entry[spawned].spawned_entity> pmodel_def_pose:<[pose]>
@@ -164,6 +164,16 @@ pmodels_animate:
     - flag <[root_entity]> pmodels_animation_id:<[animation]>
     - flag <[root_entity]> pmodels_anim_time:0
     - flag server pmodels_anim_active.<[root_entity].uuid>
+
+pmodels_end_animation:
+    type: task
+    debug: false
+    definitions: root_entity
+    script:
+    - flag <[root_entity]> pmodels_animation_id:!
+    - flag <[root_entity]> pmodels_anim_time:0
+    - flag server pmodels_anim_active.<[root_entity].uuid>:!
+    - run pmodels_reset_model_position def.root_entity:<[root_entity]>
 
 pmodels_remove_model:
     type: task
@@ -268,8 +278,10 @@ pmodels_move_to_frame:
         - define parent_offset <location[<[parentage.<[parent_id]>.offset]||0,0,0>]>
         - define parent_raw_offset <[model_data.<[parent_id]>.origin]||0,0,0>
         - define rel_offset <location[<[this_part.origin]>].sub[<[parent_raw_offset]>]>
-        - define rot_offset <[rel_offset].proc[pmodels_rot_proc].context[<[parent_rot]>]>
-        - define new_pos <[framedata.position].as_location.proc[pmodels_rot_proc].context[<[parent_rot]>].add[<[rot_offset]>].add[<[parent_pos]>]>
+        #- define rot_offset <[rel_offset].proc[pmodels_rot_proc].context[<[parent_rot]>]>
+        - define rot_offset <[rel_offset].proc[pmodels_rot_proc_quat].context[<[parent_rot]>]>
+        #- define new_pos <[framedata.position].as_location.proc[pmodels_rot_proc].context[<[parent_rot]>].add[<[rot_offset]>].add[<[parent_pos]>]>
+        - define new_pos <[framedata.position].as_location.proc[pmodels_rot_proc_quat].context[<[parent_rot]>].add[<[rot_offset]>].add[<[parent_pos]>]>
         - define new_rot <[framedata.rotation].as_location.add[<[parent_rot]>].add[<[pose]>]>
         - define parentage.<[part_id]>.position:<[new_pos]>
         - define parentage.<[part_id]>.rotation:<[new_rot]>
@@ -298,6 +310,167 @@ pmodels_rot_proc:
     definitions: loc|rot
     script:
     - determine <[loc].rotate_around_x[<[rot].x.mul[-1]>].rotate_around_y[<[rot].y.mul[-1]>].rotate_around_z[<[rot].z>]>
+
+pmodels_rot_proc_quat:
+    type: procedure
+    debug: false
+    definitions: loc|rot
+    script:
+    - define r1 <proc[pmodels_rot_quat].context[<[rot].x.mul[-1]>|x|<[loc]>]>
+    - define r2 <proc[pmodels_rot_quat].context[<[rot].y.mul[-1]>|y|<[r1]>]>
+    - define r <proc[pmodels_rot_quat].context[<[rot].z>|z|<[r2]>]>
+    - determine <[r]>
+
+# Angle = Angle in radians
+# Axis = x,y,z
+# Vector = Vector to rotate
+pmodels_rot_quat:
+    type: procedure
+    debug: false
+    definitions: angle|axis|vector
+    script:
+    #The vector to rotate
+    - define p <[vector].proc[pmodels_vector_to_quaternion]>
+    #Axis to rotate the vector
+    - choose <[axis]>:
+      - case x:
+        - define axis <location[1,0,0]>
+      - case y:
+        - define axis <location[0,1,0]>
+      - case z:
+        - define axis <location[0,0,1]>
+    #Normalize the axis
+    - define axis <[axis].normalize>
+    #Create quaternion from angle and axis
+    - define q <[angle].proc[pmodels_quaternion_create].context[<[axis]>]>
+    #Convert quaternion to unit norm quaternion
+    - define q <[q].proc[pmodels_quaternion_to_unitnorm]>
+    #Get the inverse of the quaternion
+    - define qInverse <[q].proc[pmodels_quaternion_inverse]>
+    #Quaternion multiplied by point(vector) (Why the hell do these values not pass through when using the mul procedure?)
+    - define q_2 <[p]>
+    #This method of quaternion multiplication is about 35% faster than the usual one
+    #Q * P
+    - define v <location[<[q.x]>,<[q.y]>,<[q.z]>]>
+    - define v_2 <location[<[q_2.x]>,<[q_2.y]>,<[q_2.z]>]>
+    - define scalar <[q.w].mul[<[q_2.w]>].sub[<[v].proc[pmodels_dot_product].context[<[v_2]>]>]>
+    - define imag <[v_2].mul[<[q.w]>].add[<[v].mul[<[q_2.w]>]>].add[<[v].proc[pmodels_cross_product].context[<[v_2]>]>]>
+    - define quat.w <[scalar]>
+    - define quat.x <[imag].x>
+    - define quat.y <[imag].y>
+    - define quat.z <[imag].z>
+    #New Q * Q-1
+    - define q <[quat]>
+    - define q_2 <[qInverse]>
+    - define v <location[<[q.x]>,<[q.y]>,<[q.z]>]>
+    - define v_2 <location[<[q_2.x]>,<[q_2.y]>,<[q_2.z]>]>
+    - define scalar <[q.w].mul[<[q_2.w]>].sub[<[v].proc[pmodels_dot_product].context[<[v_2]>]>]>
+    - define imag <[v_2].mul[<[q.w]>].add[<[v].mul[<[q_2.w]>]>].add[<[v].proc[pmodels_cross_product].context[<[v_2]>]>]>
+    - define quat.w <[scalar]>
+    - define quat.x <[imag].x>
+    - define quat.y <[imag].y>
+    - define quat.z <[imag].z>
+    - determine <location[<[quat.x]>,<[quat.y]>,<[quat.z]>]>
+
+pmodels_quaternion_create:
+    type: procedure
+    debug: false
+    definitions: s|v
+    script:
+    - define quat.w <[s]>
+    - define quat.x <[v].x>
+    - define quat.y <[v].y>
+    - define quat.z <[v].z>
+    - determine <[quat]>
+
+#Converts a vector to a quaternion with the w or s component being 0
+pmodels_vector_to_quaternion:
+    type: procedure
+    debug: false
+    definitions: vector
+    script:
+    - define quat.w 0
+    - define quat.x <[vector].x>
+    - define quat.y <[vector].y>
+    - define quat.z <[vector].z>
+    - determine <[quat]>
+
+#Returns the quaternions magnitude
+pmodels_quaternion_norm:
+    type: procedure
+    debug: false
+    definitions: q
+    script:
+    - define scalar <[q.w].power[2]>
+    - define vec <location[<[q.x]>,<[q.y]>,<[q.z]>]>
+    - define imag.x <[vec].x.power[2]>
+    - define imag.y <[vec].y.power[2]>
+    - define imag.z <[vec].z.power[2]>
+    - define scalar <[scalar].add[<[imag.x]>]>
+    - define scalar <[scalar].add[<[imag.y]>]>
+    - define scalar <[scalar].add[<[imag.z]>]>
+    - determine <[scalar].sqrt>
+
+#Returns the unit(normalized) quaternion
+pmodels_quaternion_to_unitnorm:
+    type: procedure
+    debug: false
+    definitions: q
+    script:
+    - define angle <[q.w]>
+    - define vec <location[<[q.x]>,<[q.y]>,<[q.z]>].normalize>
+    - define w <[angle].mul[0.5].cos>
+    - define vec <[vec].mul[<[angle].mul[0.5].sin>]>
+    - define quat.w <[w]>
+    - define quat.x <[vec].x>
+    - define quat.y <[vec].y>
+    - define quat.z <[vec].z>
+    - determine <[quat]>
+
+pmodels_quaternion_conjugate:
+    type: procedure
+    debug: false
+    definitions: quat
+    script:
+    - define quat_2.x <[quat.x].mul[-1]>
+    - define quat_2.y <[quat.y].mul[-1]>
+    - define quat_2.z <[quat.z].mul[-1]>
+    - define quat_2.w <[quat.w]>
+    - determine <[quat_2]>
+
+pmodels_quaternion_inverse:
+    type: procedure
+    debug: false
+    definitions: q
+    script:
+    - define a_val <proc[pmodels_quaternion_norm].context[<[q]>]>
+    - define a_val <[a_val].power[2]>
+    - define a_val <element[1].div[<[a_val]>]>
+    - define conjugate <proc[pmodels_quaternion_conjugate].context[<[q]>]>
+    - define scalar <[conjugate.w].mul[<[a_val]>]>
+    - define conj_vec <location[<[conjugate.x]>,<[conjugate.y]>,<[conjugate.z]>]>
+    - define imag.x <[conj_vec].x.mul[<[a_val]>]>
+    - define imag.y <[conj_vec].y.mul[<[a_val]>]>
+    - define imag.z <[conj_vec].z.mul[<[a_val]>]>
+    - define quat.w <[scalar]>
+    - define quat.x <[imag.x]>
+    - define quat.y <[imag.y]>
+    - define quat.z <[imag.z]>
+    - determine <[quat]>
+
+pmodels_dot_product:
+    type: procedure
+    debug: false
+    definitions: a|b
+    script:
+    - determine <[a].x.mul[<[b].x>].add[<[a].y.mul[<[b].y>]>].add[<[a].z.mul[<[b].z>]>]>
+
+pmodels_cross_product:
+    type: procedure
+    debug: false
+    definitions: a|b
+    script:
+    - determine <[a].with_x[<[a].y.mul[<[b].z>].sub[<[a].z.mul[<[b].y>]>]>].with_y[<[a].z.mul[<[b].x>].sub[<[a].x.mul[<[b].z>]>]>].with_z[<[a].x.mul[<[b].y>].sub[<[a].y.mul[<[b].x>]>]>]>
 
 #############################
 
