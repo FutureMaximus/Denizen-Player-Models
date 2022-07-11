@@ -348,7 +348,7 @@ pmodels_rot_quat:
     - define q.x <[vec].x>
     - define q.y <[vec].y>
     - define q.z <[vec].z>
-    #Norm of the quaternion
+    #Norm(Magnitude) of the quaternion
     - define sc <[q.w].power[2]>
     - define vec <location[<[q.x]>,<[q.y]>,<[q.z]>]>
     - define im.x <[vec].x.power[2]>
@@ -361,8 +361,7 @@ pmodels_rot_quat:
     - define c_q.z <[q.z].mul[-1]>
     - define c_q.w <[q.w]>
     #Get the inverse of the quaternion
-    - define norm <[norm].power[2]>
-    - define norm <element[1].div[<[norm]>]>
+    - define norm <element[1].div[<[norm].power[2]>]>
     - define sc <[c_q.w].mul[<[norm]>]>
     - define cvec <location[<[c_q.x]>,<[c_q.y]>,<[c_q.z]>]>
     - define im.x <[cvec].x.mul[<[norm]>]>
@@ -372,7 +371,7 @@ pmodels_rot_quat:
     - define qInv.x <[im.x]>
     - define qInv.y <[im.y]>
     - define qInv.z <[im.z]>
-    #Quaternion multiplied by point(vector) (Why the hell do these values not pass through when using the mul procedure?)
+    #Quaternion multiplied by point(vector)
     #This method of quaternion multiplication is about 35% faster than the usual one
     #Q * P
     - define v <location[<[q.x]>,<[q.y]>,<[q.z]>]>
@@ -384,15 +383,10 @@ pmodels_rot_quat:
     - define nq.y <[im].y>
     - define nq.z <[im].z>
     #New Q * Q-1
-    - define q <[nq]>
-    - define q_2 <[qInv]>
-    - define v <location[<[q.x]>,<[q.y]>,<[q.z]>]>
-    - define v_2 <location[<[q_2.x]>,<[q_2.y]>,<[q_2.z]>]>
-    - define im <[v_2].mul[<[q.w]>].add[<[v].mul[<[q_2.w]>]>].add[<[v].proc[pmodels_cross_product].context[<[v_2]>]>]>
-    - define rv.x <[im].x>
-    - define rv.y <[im].y>
-    - define rv.z <[im].z>
-    - determine <location[<[rv.x]>,<[rv.y]>,<[rv.z]>]>
+    - define v <location[<[nq.x]>,<[nq.y]>,<[nq.z]>]>
+    - define v_2 <location[<[qInv.x]>,<[qInv.y]>,<[qInv.z]>]>
+    - define im <[v_2].mul[<[nq.w]>].add[<[v].mul[<[qInv.w]>]>].add[<[v].proc[pmodels_cross_product].context[<[v_2]>]>]>
+    - determine <location[<[im].x>,<[im].y>,<[im].z>]>
 
 pmodels_dot_product:
     type: procedure
