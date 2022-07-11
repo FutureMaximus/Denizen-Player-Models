@@ -13,7 +13,7 @@ pmodels_load_bbmodel:
     - flag server pmodels_data.animations_player_model_template_norm:!
     - flag server pmodels_data.animations_player_model_template_slim:!
     # ============== Animation Gathering ===============
-    - define animation_files <server.list_files[data/pmodels/animations]||null>
+    - define animation_files <util.list_files[data/pmodels/animations]||null>
     - if <[animation_files]> == null:
       - debug error "Could not find animations folder in data/pmodels"
     - else if <[animation_files].is_empty>:
@@ -30,13 +30,16 @@ pmodels_load_bbmodel:
         - define pack_root data/pmodels/external_bones_res_pack
         - define models_root <[pack_root]>/assets/minecraft/models/item/pmodels/<[animation_file]>
         - define textures_root <[pack_root]>/assets/minecraft/textures/pmodels/<[animation_file]>
+        - define item_validate <item[<script[pmodel_config].data_key[config].get[item]>]||null>
+        - if <[item_validate]> == null:
+          - debug error "[Denizen Player Models] Warning: The item specified in the config is an invalid item external bones will not generate"
         - define override_item_filepath <[pack_root]>/assets/minecraft/models/item/<script[pmodel_config].data_key[config].get[item]>.json
         - define file data/pmodels/animations/<[animation_file]>.bbmodel
         - define scale_factor <element[2.285].div[4]>
         - define mc_texture_data <map>
         - flag server pmodels_data.temp_<[animation_file]>:!
         # =============== BBModel loading and validation ===============
-        - if !<server.has_file[<[file]>]>:
+        - if !<util.has_file[<[file]>]>:
             - debug error "Cannot load model '<[animation_file]>' because file '<[file]>' does not exist."
             - stop
         - ~fileread path:<[file]> save:filedata
@@ -53,8 +56,9 @@ pmodels_load_bbmodel:
             - debug error "Can't load bbmodel for '<[animation_file]>' - file has no elements?"
             - stop
         # =============== Pack validation ===============
-        - if !<server.has_flag[data/pmodels/external_bones_res_pack/pack.mcmeta]>:
-            - filewrite path:data/pmodels/external_bones_res_pack/pack.mcmeta data:<map.with[pack].as[<map[pack_format=8;description=denizen_player_models_pack]>].to_json[native_types=true;indent=4].utf8_encode>
+        - if <[item_validate]> != null:
+            - if !<server.has_flag[data/pmodels/external_bones_res_pack/pack.mcmeta]>:
+                - filewrite path:data/pmodels/external_bones_res_pack/pack.mcmeta data:<map.with[pack].as[<map[pack_format=8;description=denizen_player_models_pack]>].to_json[native_types=true;indent=4].utf8_encode>
         # =============== Elements loading ===============
         #Reason for loading elements before is to skip the player model texture
         - foreach <[data.elements]> as:element:
@@ -91,7 +95,8 @@ pmodels_load_bbmodel:
                     - define tex_id:++
                     - foreach next
             - define texture_output_path <[textures_root]>/<[texname]>.png
-            - ~filewrite path:<[texture_output_path]> data:<[raw_source].after[,].base64_to_binary>
+            - if <[item_validate]> != null:
+              - ~filewrite path:<[texture_output_path]> data:<[raw_source].after[,].base64_to_binary>
             - define proper_path pmodels/<[animation_file]>/<[texname]>
             - define mc_texture_data.<[tex_id]> <[proper_path]>
             - if <[texture.particle]||false>:
@@ -125,9 +130,9 @@ pmodels_load_bbmodel:
               - if <[animator]> != null:
                 - define keyframes <[animator.keyframes]>
                 - foreach <[keyframes]> as:keyframe:
-                    - define anim_map.channel <[keyframe.channel].to_uppercase>
+                    - define anim_map.channel <[keyframe.channel]>
                     - define data_points <[keyframe.data_points].first>
-                    - if <[anim_map.channel]> == ROTATION:
+                    - if <[anim_map.channel]> == rotation:
                         - define anim_map.data <[data_points.x].to_radians>,<[data_points.y].to_radians>,<[data_points.z].to_radians>
                     - else:
                         - define anim_map.data <[data_points.x]>,<[data_points.y]>,<[data_points.z]>
@@ -139,7 +144,7 @@ pmodels_load_bbmodel:
               - else:
                 - define animation_list.<[animation.name]>.animators.<[o_uuid]>.frames <list>
         # =============== Item model file generation ===============
-        - if <server.has_file[<[override_item_filepath]>]>:
+        - if <util.has_file[<[override_item_filepath]>]>:
             - ~fileread path:<[override_item_filepath]> save:override_item
             - define override_item_data <util.parse_yaml[<entry[override_item].data.utf8_decode>]>
         - else:
@@ -182,7 +187,8 @@ pmodels_load_bbmodel:
                     - define model_json.display.head.translation <list[32|25|32]>
                     - define model_json.display.head.scale <list[4|4|4]>
                     - define modelpath item/pmodels/<[animation_file]>/<[outline.name]>
-                    - ~filewrite path:<[models_root]>/<[outline.name]>.json data:<[model_json].to_json[native_types=true;indent=4].utf8_encode>
+                    - if <[item_validate]> != null:
+                      - ~filewrite path:<[models_root]>/<[outline.name]>.json data:<[model_json].to_json[native_types=true;indent=4].utf8_encode>
                     - define cmd 0
                     - define min_cmd 1000
                     - foreach <[override_item_data.overrides]||<list>> as:override:
@@ -203,14 +209,17 @@ pmodels_load_bbmodel:
                 ## This sets the actual live usage flag data for external bones should they exist
                 - flag server pmodels_data.model_player_model_template_norm.<[outline.uuid]>:<[outline]>
                 - flag server pmodels_data.model_player_model_template_slim.<[outline.uuid]>:<[outline]>
-        - if <[overrides_changed]>:
-            - ~filewrite path:<[override_item_filepath]> data:<[override_item_data].to_json[native_types=true;indent=4].utf8_encode>
+        - if <[item_validate]> != null:
+            - if <[overrides_changed]>:
+                - ~filewrite path:<[override_item_filepath]> data:<[override_item_data].to_json[native_types=true;indent=4].utf8_encode>
         # Final clear of temp data
         - flag server pmodels_data.temp_<[animation_file]>:!
     # Set the animations
     - flag server pmodels_data.animations_player_model_template_norm:<[animation_list]>
     - flag server pmodels_data.animations_player_model_template_slim:<[animation_list]>
     # ============= Template Loading ===============
+    #TODO:
+    #- No longer need the json files and give ability to customize custom model data in pmodels config
     - define norm_path data/pmodels/templates
     - define slim_path data/pmodels/templates
     - ~fileread path:<[norm_path]>/player_model_template_norm.json save:norm_read
