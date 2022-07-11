@@ -278,10 +278,8 @@ pmodels_move_to_frame:
         - define parent_offset <location[<[parentage.<[parent_id]>.offset]||0,0,0>]>
         - define parent_raw_offset <[model_data.<[parent_id]>.origin]||0,0,0>
         - define rel_offset <location[<[this_part.origin]>].sub[<[parent_raw_offset]>]>
-        #- define rot_offset <[rel_offset].proc[pmodels_rot_proc].context[<[parent_rot]>]>
-        - define rot_offset <[rel_offset].proc[pmodels_rot_proc_quat].context[<[parent_rot]>]>
-        #- define new_pos <[framedata.position].as_location.proc[pmodels_rot_proc].context[<[parent_rot]>].add[<[rot_offset]>].add[<[parent_pos]>]>
-        - define new_pos <[framedata.position].as_location.proc[pmodels_rot_proc_quat].context[<[parent_rot]>].add[<[rot_offset]>].add[<[parent_pos]>]>
+        - define rot_offset <[rel_offset].proc[pmodels_rot_proc].context[<[parent_rot]>]>
+        - define new_pos <[framedata.position].as_location.proc[pmodels_rot_proc].context[<[parent_rot]>].add[<[rot_offset]>].add[<[parent_pos]>]>
         - define new_rot <[framedata.rotation].as_location.add[<[parent_rot]>].add[<[pose]>]>
         - define parentage.<[part_id]>.position:<[new_pos]>
         - define parentage.<[part_id]>.rotation:<[new_rot]>
@@ -309,17 +307,9 @@ pmodels_rot_proc:
     debug: false
     definitions: loc|rot
     script:
-    - determine <[loc].rotate_around_x[<[rot].x.mul[-1]>].rotate_around_y[<[rot].y.mul[-1]>].rotate_around_z[<[rot].z>]>
-
-pmodels_rot_proc_quat:
-    type: procedure
-    debug: false
-    definitions: loc|rot
-    script:
     - define r1 <proc[pmodels_rot_quat].context[<[rot].x.mul[-1]>|x|<[loc]>]>
     - define r2 <proc[pmodels_rot_quat].context[<[rot].y.mul[-1]>|y|<[r1]>]>
-    - define r <proc[pmodels_rot_quat].context[<[rot].z>|z|<[r2]>]>
-    - determine <[r]>
+    - determine <proc[pmodels_rot_quat].context[<[rot].z>|z|<[r2]>]>
 
 # Angle = Angle in radians
 # Axis = x,y,z
@@ -330,133 +320,79 @@ pmodels_rot_quat:
     definitions: angle|axis|vector
     script:
     #The vector to rotate
-    - define p <[vector].proc[pmodels_vector_to_quaternion]>
+    - define p.w 0.0
+    - define p.x <[vector].x>
+    - define p.y <[vector].y>
+    - define p.z <[vector].z>
+    #The second quaternion
+    - define q_2 <[p]>
     #Axis to rotate the vector
     - choose <[axis]>:
       - case x:
-        - define axis <location[1,0,0]>
+        - define axis <location[1,0,0].normalize>
       - case y:
-        - define axis <location[0,1,0]>
+        - define axis <location[0,1,0].normalize>
       - case z:
-        - define axis <location[0,0,1]>
-    #Normalize the axis
-    - define axis <[axis].normalize>
+        - define axis <location[0,0,1].normalize>
     #Create quaternion from angle and axis
-    - define q <[angle].proc[pmodels_quaternion_create].context[<[axis]>]>
+    - define q.w <[angle]>
+    - define q.x <[axis].x>
+    - define q.y <[axis].y>
+    - define q.z <[axis].z>
     #Convert quaternion to unit norm quaternion
-    - define q <[q].proc[pmodels_quaternion_to_unitnorm]>
+    - define angle <[q.w]>
+    - define vec <location[<[q.x]>,<[q.y]>,<[q.z]>].normalize>
+    - define w <[angle].mul[0.5].cos>
+    - define vec <[vec].mul[<[angle].mul[0.5].sin>]>
+    - define q.w <[w]>
+    - define q.x <[vec].x>
+    - define q.y <[vec].y>
+    - define q.z <[vec].z>
+    #Norm of the quaternion
+    - define sc <[q.w].power[2]>
+    - define vec <location[<[q.x]>,<[q.y]>,<[q.z]>]>
+    - define im.x <[vec].x.power[2]>
+    - define im.y <[vec].y.power[2]>
+    - define im.z <[vec].z.power[2]>
+    - define norm <[sc].add[<[im.x]>].add[<[im.y]>].add[<[im.z]>].sqrt>
+    #Conjugate
+    - define c_q.x <[q.x].mul[-1]>
+    - define c_q.y <[q.y].mul[-1]>
+    - define c_q.z <[q.z].mul[-1]>
+    - define c_q.w <[q.w]>
     #Get the inverse of the quaternion
-    - define qInverse <[q].proc[pmodels_quaternion_inverse]>
+    - define norm <[norm].power[2]>
+    - define norm <element[1].div[<[norm]>]>
+    - define sc <[c_q.w].mul[<[norm]>]>
+    - define cvec <location[<[c_q.x]>,<[c_q.y]>,<[c_q.z]>]>
+    - define im.x <[cvec].x.mul[<[norm]>]>
+    - define im.y <[cvec].y.mul[<[norm]>]>
+    - define im.z <[cvec].z.mul[<[norm]>]>
+    - define qInv.w <[sc]>
+    - define qInv.x <[im.x]>
+    - define qInv.y <[im.y]>
+    - define qInv.z <[im.z]>
     #Quaternion multiplied by point(vector) (Why the hell do these values not pass through when using the mul procedure?)
-    - define q_2 <[p]>
     #This method of quaternion multiplication is about 35% faster than the usual one
     #Q * P
     - define v <location[<[q.x]>,<[q.y]>,<[q.z]>]>
     - define v_2 <location[<[q_2.x]>,<[q_2.y]>,<[q_2.z]>]>
     - define scalar <[q.w].mul[<[q_2.w]>].sub[<[v].proc[pmodels_dot_product].context[<[v_2]>]>]>
-    - define imag <[v_2].mul[<[q.w]>].add[<[v].mul[<[q_2.w]>]>].add[<[v].proc[pmodels_cross_product].context[<[v_2]>]>]>
-    - define quat.w <[scalar]>
-    - define quat.x <[imag].x>
-    - define quat.y <[imag].y>
-    - define quat.z <[imag].z>
+    - define im <[v_2].mul[<[q.w]>].add[<[v].mul[<[q_2.w]>]>].add[<[v].proc[pmodels_cross_product].context[<[v_2]>]>]>
+    - define nq.w <[scalar]>
+    - define nq.x <[im].x>
+    - define nq.y <[im].y>
+    - define nq.z <[im].z>
     #New Q * Q-1
-    - define q <[quat]>
-    - define q_2 <[qInverse]>
+    - define q <[nq]>
+    - define q_2 <[qInv]>
     - define v <location[<[q.x]>,<[q.y]>,<[q.z]>]>
     - define v_2 <location[<[q_2.x]>,<[q_2.y]>,<[q_2.z]>]>
-    - define scalar <[q.w].mul[<[q_2.w]>].sub[<[v].proc[pmodels_dot_product].context[<[v_2]>]>]>
-    - define imag <[v_2].mul[<[q.w]>].add[<[v].mul[<[q_2.w]>]>].add[<[v].proc[pmodels_cross_product].context[<[v_2]>]>]>
-    - define quat.w <[scalar]>
-    - define quat.x <[imag].x>
-    - define quat.y <[imag].y>
-    - define quat.z <[imag].z>
-    - determine <location[<[quat.x]>,<[quat.y]>,<[quat.z]>]>
-
-pmodels_quaternion_create:
-    type: procedure
-    debug: false
-    definitions: s|v
-    script:
-    - define quat.w <[s]>
-    - define quat.x <[v].x>
-    - define quat.y <[v].y>
-    - define quat.z <[v].z>
-    - determine <[quat]>
-
-#Converts a vector to a quaternion with the w or s component being 0
-pmodels_vector_to_quaternion:
-    type: procedure
-    debug: false
-    definitions: vector
-    script:
-    - define quat.w 0
-    - define quat.x <[vector].x>
-    - define quat.y <[vector].y>
-    - define quat.z <[vector].z>
-    - determine <[quat]>
-
-#Returns the quaternions magnitude
-pmodels_quaternion_norm:
-    type: procedure
-    debug: false
-    definitions: q
-    script:
-    - define scalar <[q.w].power[2]>
-    - define vec <location[<[q.x]>,<[q.y]>,<[q.z]>]>
-    - define imag.x <[vec].x.power[2]>
-    - define imag.y <[vec].y.power[2]>
-    - define imag.z <[vec].z.power[2]>
-    - define scalar <[scalar].add[<[imag.x]>]>
-    - define scalar <[scalar].add[<[imag.y]>]>
-    - define scalar <[scalar].add[<[imag.z]>]>
-    - determine <[scalar].sqrt>
-
-#Returns the unit(normalized) quaternion
-pmodels_quaternion_to_unitnorm:
-    type: procedure
-    debug: false
-    definitions: q
-    script:
-    - define angle <[q.w]>
-    - define vec <location[<[q.x]>,<[q.y]>,<[q.z]>].normalize>
-    - define w <[angle].mul[0.5].cos>
-    - define vec <[vec].mul[<[angle].mul[0.5].sin>]>
-    - define quat.w <[w]>
-    - define quat.x <[vec].x>
-    - define quat.y <[vec].y>
-    - define quat.z <[vec].z>
-    - determine <[quat]>
-
-pmodels_quaternion_conjugate:
-    type: procedure
-    debug: false
-    definitions: quat
-    script:
-    - define quat_2.x <[quat.x].mul[-1]>
-    - define quat_2.y <[quat.y].mul[-1]>
-    - define quat_2.z <[quat.z].mul[-1]>
-    - define quat_2.w <[quat.w]>
-    - determine <[quat_2]>
-
-pmodels_quaternion_inverse:
-    type: procedure
-    debug: false
-    definitions: q
-    script:
-    - define a_val <proc[pmodels_quaternion_norm].context[<[q]>]>
-    - define a_val <[a_val].power[2]>
-    - define a_val <element[1].div[<[a_val]>]>
-    - define conjugate <proc[pmodels_quaternion_conjugate].context[<[q]>]>
-    - define scalar <[conjugate.w].mul[<[a_val]>]>
-    - define conj_vec <location[<[conjugate.x]>,<[conjugate.y]>,<[conjugate.z]>]>
-    - define imag.x <[conj_vec].x.mul[<[a_val]>]>
-    - define imag.y <[conj_vec].y.mul[<[a_val]>]>
-    - define imag.z <[conj_vec].z.mul[<[a_val]>]>
-    - define quat.w <[scalar]>
-    - define quat.x <[imag.x]>
-    - define quat.y <[imag.y]>
-    - define quat.z <[imag.z]>
-    - determine <[quat]>
+    - define im <[v_2].mul[<[q.w]>].add[<[v].mul[<[q_2.w]>]>].add[<[v].proc[pmodels_cross_product].context[<[v_2]>]>]>
+    - define rv.x <[im].x>
+    - define rv.y <[im].y>
+    - define rv.z <[im].z>
+    - determine <location[<[rv.x]>,<[rv.y]>,<[rv.z]>]>
 
 pmodels_dot_product:
     type: procedure
