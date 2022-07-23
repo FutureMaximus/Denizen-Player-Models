@@ -35,7 +35,7 @@ pmodel_part_stand_small:
     debug: false
     entity_type: armor_stand
     mechanisms:
-        marker: true
+        marker: false
         gravity: false
         visible: false
         is_small: true
@@ -78,7 +78,10 @@ pmodels_spawn_model:
     - define yaw_mod <[location].yaw.add[180].to_radians>
     - spawn pmodel_part_stand <[location]> save:root
     - define root_entity <entry[root].spawned_entity>
-    - flag <entry[root].spawned_entity> pmodel_model_id:<[model_name]>
+    - flag <[root_entity]> pmodel_model_id:<[model_name]>
+    #Skin type of player model
+    - flag <[root_entity]> skin_type:<[skin_type]>
+    - define skull_skin <[player].skull_skin>
     - foreach <server.flag[pmodels_data.model_<[model_name]>]> key:id as:part:
         - if !<[part.item].exists>:
             - foreach next
@@ -92,7 +95,7 @@ pmodels_spawn_model:
         - define pose <[rots].get[1].mul[-1]>,<[rots].get[2].mul[-1]>,<[rots].get[3]>
         #when going too far from the player model textures can get messed up setting the tracking range to 256 fixes the issue
         - spawn pmodel_part_stand[armor_pose=[right_arm=<[pose]>];tracking_range=256] <[center].add[<[offset].rotate_around_y[<[yaw_mod].mul[-1]>]>]> save:spawned
-        - adjust <item[<[part.item]>]> skull_skin:<[player].skull_skin> save:item
+        - adjust <item[<[part.item]>]> skull_skin:<[skull_skin]> save:item
         - define part.item <entry[item].result>
         #fakeequip if fake_to is being used
         - if <player[<[fake_to]>]||null> != null:
@@ -104,13 +107,14 @@ pmodels_spawn_model:
         - flag <entry[spawned].spawned_entity> pmodel_def_pose:<[pose]>
         - define name <[part.name]>
         - flag <entry[spawned].spawned_entity> pmodel_def_name:<[name]>
+        - flag <entry[spawned].spawned_entity> pmodel_def_uuid:<[id]>
+        - flag <entry[spawned].spawned_entity> pmodel_def_pos:<location[0,0,0]>
         - flag <entry[spawned].spawned_entity> pmodel_def_item:<item[<[part.item]>]>
         - flag <entry[spawned].spawned_entity> pmodel_def_offset:<[offset]>
         - flag <entry[spawned].spawned_entity> pmodel_root:<entry[root].spawned_entity>
         - flag <entry[spawned].spawned_entity> pmodel_def_type:default
         - flag <entry[root].spawned_entity> pmodel_parts:->:<entry[spawned].spawned_entity>
         - flag <entry[root].spawned_entity> pmodel_anim_part.<[id]>:->:<entry[spawned].spawned_entity>
-    - flag <[root_entity]> skin_type:<[skin_type]>
     - define external_parts <[external_parts]||null>
     - if <[external_parts]> != null:
       - flag <[root_entity]> external_parts:<[external_parts]>
@@ -154,6 +158,8 @@ pmodels_animate:
           - flag <entry[spawned].spawned_entity> pmodel_def_pose:<[pose]>
           - define name <[part.name]>
           - flag <entry[spawned].spawned_entity> pmodel_def_name:<[name]>
+          - flag <entry[spawned].spawned_entity> pmodel_def_uuid:<[id]>
+          - flag <entry[spawned].spawned_entity> pmodel_def_pos:<location[0,0,0]>
           - flag <entry[spawned].spawned_entity> pmodel_def_item:<item[<[part.item]>]>
           - flag <entry[spawned].spawned_entity> pmodel_def_offset:<[offset]>
           - flag <entry[spawned].spawned_entity> pmodel_root:<[root_entity]>
@@ -208,6 +214,164 @@ pmodels_reset_model_position:
             - define center <[root_entity].location.with_pitch[0].below[0.7]>
             - adjust <[part]> armor_pose:[head=<[part].flag[pmodel_def_pose]>]
         - teleport <[part]> <[center].add[<[part].flag[pmodel_def_offset].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
+
+pmodels_change_skin:
+    type: task
+    debug: true
+    definitions: player|root
+    script:
+    - define npc <npc[<[player]>]||null>
+    - define player <player[<[player]>]||null>
+    - if <[npc]> != null:
+      - define skull_skin <[npc].skull_skin>
+      - define skin_type <[npc].proc[pmodels_skin_type]>
+    - else if <[player]> != null:
+      - define skull_skin <[player].skull_skin>
+      - define skin_type <[player].flag[pmodels_skin_type]>
+    - else:
+      - debug error "[Denizen Player Models] Must specify a valid player or npc to change the player model skin."
+      - stop
+    - define fake_to <[root].flag[fake_to]||null>
+    - define parts <[root].flag[pmodel_parts]||<list>>
+    - define load_order <list[player_root|head|hip|waist|chest|right_arm|right_forearm|left_arm|left_forearm|right_leg|right_foreleg|left_leg|left_foreleg]>
+    - foreach <[load_order]> as:bone:
+      - foreach <[parts]> as:part:
+        - if <[part].flag[pmodel_def_name]> == <[bone]>:
+          - define i <[part].item_in_hand>
+          #If the root model skin type does not equal the new model skin type change it
+          - if <[root].flag[skin_type]> != <[skin_type]>:
+            - choose <[skin_type]>:
+              - define path data/pmodels/templates
+              - case classic:
+                - define norm_data <server.flag[pmodels_data.template_data.norm]>
+                - if <[norm_data]> == null:
+                  - debug error "[Denizen Player Models] Could not find template file data in pmodels_change_skin"
+                  - stop
+                - define models <[norm_data.models]>
+                - foreach <[models]> as:model:
+                  - define name <[model.name]>
+                  - if <[name]> == <[bone]>:
+                    - define i <item[<[model.item]>]>
+                    - define offset <location[<[model.origin]>].div[15.98]>
+                    - flag <[part]> pmodel_def_offset:<[offset]>
+              - case slim:
+                - define slim_data <server.flag[pmodels_data.template_data.slim]>
+                - if <[slim_data]> == null:
+                  - debug error "[Denizen Player Models] Could not find template file in pmodels_change_skin"
+                  - stop
+                - define models <[slim_data.models]>
+                - foreach <[models]> as:model:
+                  - define name <[model.name]>
+                  - if <[name]> == <[bone]>:
+                    - define i <item[<[model.item]>]>
+                    - define offset <location[<[model.origin]>].div[15.98]>
+                    - flag <[part]> pmodel_def_offset:<[offset]>
+          - adjust <[i]> skull_skin:<[skull_skin]> save:item
+          - define item <entry[item].result>
+          - if <[fake_to]> != null:
+            - fakeequip <[part]> hand:<[item]> for:<[fake_to]> duration:infinite
+          - else:
+            - equip <[part]> hand:<[item]>
+    - if <[root].flag[skin_type]> != <[skin_type]>:
+      - flag <[root]> skin_type:<[skin_type]>
+      - run pmodels_reset_model_position def.root_entity:<[root]>
+
+#This allows the player model to transition to the next animation smoothly instead of instantly
+##Experimental needs more work DO NOT USE IT YET
+pmodels_transition_anim:
+    type: task
+    debug: false
+    definitions: root_entity|length|animation|interpolation
+    script:
+    - define interpolation <[interpolation]||catmullrom>
+    #If no animation is set transition to 0,0,0
+    - define animation <[animation]||default>
+    - define length <[length]||1s>
+    - flag server pmodels_anim_active.<[root_entity].uuid>:!
+    #Temporary Animation Creator
+    - define temp_uuid <util.random_uuid>
+    - define temp_data.loop hold
+    - define temp_data.length <duration[<[length]>].in_seconds>
+    ##Animation part 1
+    - foreach <[root_entity].flag[pmodel_parts]> as:part:
+      - define type <[part].flag[pmodel_def_type]>
+      - choose <[type]>:
+        - case default:
+          - define type right_arm
+        - case external:
+          - define type head
+      - define pose <[part].armor_pose_map.get[<[type]>]>
+      - define rot <[pose].x>,<[pose].y>,<[pose].z>
+      - define uuid <[part].flag[pmodel_def_uuid]>
+      #Rotation
+      - define anim_map.channel rotation
+      - define anim_map.data <[rot]>
+      - define anim_map.time 0.0
+      - define anim_map.interpolation <[interpolation]>
+      - define temp_data.animators.<[uuid]>.frames:->:<[anim_map]>
+      #Position
+      - define pos <[part].flag[pmodel_def_pos]>
+      - define anim_map.channel position
+      - define anim_map.data <[pos].x>,<[pos].y>,<[pos].z>
+      - define anim_map.time 0.0
+      - define anim_map.interpolation <[interpolation]>
+      - define temp_data.animators.<[uuid]>.frames:->:<[anim_map]>
+    ##Animation to transition to if animation exists
+    - if <[animation]> != default:
+      - define anim_2_data <server.flag[pmodels_data.animations_<[root_entity].flag[pmodel_model_id]>.<[animation]>.animators]>
+      - foreach <[root_entity].flag[pmodel_parts]> key:id as:part:
+        - define uuid <[part].flag[pmodel_def_uuid]>
+        - define data <[anim_2_data.<[uuid]>.frames]||null>
+        #Empty frame
+        - if <[data]> == null:
+          - define temp_data.animators.<[uuid]>.frames <list>
+        #Frames contain part
+        - else:
+          #Rotation
+          - foreach <[data]> key:id as:keyframe:
+            - if <[keyframe.channel]> == rotation:
+              - define anim_map.channel rotation
+              - define anim_map.data <[keyframe.data]>
+              - define anim_map.time <[keyframe.time]>
+              - define anim_map.interpolation <[keyframe.interpolation]>
+              - define temp_data.animators.<[uuid]>.frames:->:<[anim_map]>
+              - foreach stop
+          #Position
+          - foreach <[data]> key:id as:keyframe:
+            - if <[keyframe.channel]> == position:
+              - define anim_map.channel position
+              - define anim_map.data <[keyframe.data]>
+              - define anim_map.time <[keyframe.time]>
+              - define anim_map.interpolation <[keyframe.interpolation]>
+              - define temp_data.animators.<[uuid]>.frames:->:<[anim_map]>
+              - foreach stop
+    ##No animation so animation 0,0,0 created
+    - else:
+      - foreach <[root_entity].flag[pmodel_parts]> as:part:
+        - define uuid <[part].flag[pmodel_def_uuid]>
+        #Rotation
+        - define anim_map.channel rotation
+        - define anim_map.data 0.0,0.0,0.0
+        - define anim_map.time <[temp_data.length]>
+        - define anim_map.interpolation catmullrom
+        - define temp_data.animators.<[uuid]>.frames:->:<[anim_map]>
+        #Position
+        - define anim_map.channel position
+        - define anim_map.data 0.0,0.0,0.0
+        - define anim_map.time <[temp_data.length]>
+        - define anim_map.interpolation catmullrom
+        - define temp_data.animators.<[uuid]>.frames:->:<[anim_map]>
+        - narrate <[anim_map]>
+    - flag server pmodels_data.animations_<[root_entity].flag[pmodel_model_id]>.<[temp_uuid]>:<[temp_data]>
+    - ~filewrite path:data/pmodels/debug/temp_data.json data:<server.flag[pmodels_data.animations_<[root_entity].flag[pmodel_model_id]>.<[temp_uuid]>].to_json[native_types=true;indent=4].utf8_encode>
+    - announce <[temp_data]>
+    - run pmodels_animate def:<[root_entity]>|<[temp_uuid]>
+    - repeat <duration[<[length]>s].in_ticks>:
+      - wait 1t
+    - wait 1t
+    - define pre_data <server.flag[pmodels_data.animations_<[root_entity].flag[pmodel_model_id]>].exclude[<[temp_uuid]>]>
+    - flag server pmodels_data.animations_<[root_entity].flag[pmodel_model_id]>:<[pre_data]>
+    - run pmodels_animate def:<[root_entity]>|<[animation]>
 
 pmodels_move_to_frame:
     type: task
@@ -314,6 +478,8 @@ pmodels_rot_proc:
 # Angle = Angle in radians
 # Axis = x,y,z
 # Vector = Vector to rotate
+#TODO:
+#- See if quaternion slerp will help with bone desync
 pmodels_rot_quat:
     type: procedure
     debug: false
@@ -375,17 +541,17 @@ pmodels_rot_quat:
     #This method of quaternion multiplication is about 35% faster than the usual one
     #Q * P
     - define v <location[<[q.x]>,<[q.y]>,<[q.z]>]>
-    - define v_2 <location[<[q_2.x]>,<[q_2.y]>,<[q_2.z]>]>
-    - define scalar <[q.w].mul[<[q_2.w]>].sub[<[v].proc[pmodels_dot_product].context[<[v_2]>]>]>
-    - define im <[v_2].mul[<[q.w]>].add[<[v].mul[<[q_2.w]>]>].add[<[v].proc[pmodels_cross_product].context[<[v_2]>]>]>
-    - define nq.w <[scalar]>
+    - define v2 <location[<[q_2.x]>,<[q_2.y]>,<[q_2.z]>]>
+    - define sc <[q.w].mul[<[q_2.w]>].sub[<[v].proc[pmodels_dot_product].context[<[v2]>]>]>
+    - define im <[v2].mul[<[q.w]>].add[<[v].mul[<[q_2.w]>]>].add[<[v].proc[pmodels_cross_product].context[<[v2]>]>]>
+    - define nq.w <[sc]>
     - define nq.x <[im].x>
     - define nq.y <[im].y>
     - define nq.z <[im].z>
-    #New Q * Q-1
+    #New Q * QInverse
     - define v <location[<[nq.x]>,<[nq.y]>,<[nq.z]>]>
-    - define v_2 <location[<[qInv.x]>,<[qInv.y]>,<[qInv.z]>]>
-    - define im <[v_2].mul[<[nq.w]>].add[<[v].mul[<[qInv.w]>]>].add[<[v].proc[pmodels_cross_product].context[<[v_2]>]>]>
+    - define v2 <location[<[qInv.x]>,<[qInv.y]>,<[qInv.z]>]>
+    - define im <[v2].mul[<[nq.w]>].add[<[v].mul[<[qInv.w]>]>].add[<[v].proc[pmodels_cross_product].context[<[v2]>]>]>
     - determine <location[<[im].x>,<[im].y>,<[im].z>]>
 
 pmodels_dot_product:
