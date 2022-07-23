@@ -15,16 +15,16 @@ pmodels_load_bbmodel:
     # ============== Animation Gathering ===============
     - define animation_files <util.list_files[data/pmodels/animations]||null>
     - if <[animation_files]> == null:
-      - debug error "Could not find animations folder in data/pmodels"
+      - debug error "[Denizen Player Models] Could not find animations folder in data/pmodels"
     - else if <[animation_files].is_empty>:
-      - debug error "Could not find player model animations in data/pmodels/animations"
+      - debug error "[Denizen Player Models] Could not find player model animations in data/pmodels/animations"
     - else:
       - foreach <[animation_files]> as:anim_file_raw:
         - define check <[anim_file_raw].split[.]>
         - if <[check].contains[bbmodel]>:
             - define animation_file <[anim_file_raw].replace[.bbmodel].with[<empty>]>
         - else:
-            - debug error "There is an invalid file in data/pmodels/animations <[anim_file_raw]> is it a block bench file?"
+            - debug error "[Denizen Player Models] There is an invalid file in data/pmodels/animations <[anim_file_raw]> is it a block bench file?"
             - foreach next
         # =============== Prep ===============
         - define pack_root data/pmodels/external_bones_res_pack
@@ -40,20 +40,20 @@ pmodels_load_bbmodel:
         - flag server pmodels_data.temp_<[animation_file]>:!
         # =============== BBModel loading and validation ===============
         - if !<util.has_file[<[file]>]>:
-            - debug error "Cannot load model '<[animation_file]>' because file '<[file]>' does not exist."
+            - debug error "[Denizen Player Models] Cannot load model '<[animation_file]>' because file '<[file]>' does not exist."
             - stop
         - ~fileread path:<[file]> save:filedata
         - define data <util.parse_yaml[<entry[filedata].data.utf8_decode||>]||>
         - if !<[data].is_truthy>:
-            - debug error "Something went wrong trying to load BBModel data for model '<[animation_file]>' - fileread invalid."
+            - debug error "[Denizen Player Models] Something went wrong trying to load BBModel data for model '<[animation_file]>' - fileread invalid."
             - stop
         - define meta <[data.meta]||>
         - define resolution <[data.resolution]||>
         - if !<[meta].is_truthy> || !<[resolution].is_truthy>:
-            - debug error "Something went wrong trying to load BBModel data for model '<[animation_file]>' - possibly not a valid BBModel file?"
+            - debug error "[Denizen Player Models] Something went wrong trying to load BBModel data for model '<[animation_file]>' - possibly not a valid BBModel file?"
             - stop
         - if !<[data.elements].exists>:
-            - debug error "Can't load bbmodel for '<[animation_file]>' - file has no elements?"
+            - debug error "[Denizen Player Models] Can't load bbmodel for '<[animation_file]>' - file has no elements?"
             - stop
         # =============== Pack validation ===============
         - if <[item_validate]> != null:
@@ -121,19 +121,21 @@ pmodels_load_bbmodel:
             - define animation_list.<[animation.name]>.anim_time_update <[animation.anim_time_update]>
             - define animation_list.<[animation.name]>.blend_weight <[animation.blend_weight]>
             - define animation_list.<[animation.name]>.length <[animation.length]>
-            - define animator_data <[animation.animators]>
+            - define animator_data <[animation.animators]||<list>>
             # If the animation contains the outliners gather the data otherwise make an empty frame
             - if !<server.has_flag[pmodels_data.temp_<[animation_file]>.raw_outlines]>:
               - foreach next
             - foreach <server.flag[pmodels_data.temp_<[animation_file]>.raw_outlines]> key:o_uuid as:outline_data:
               - define animator <[animator_data.<[o_uuid]>]||null>
-              - if <[animator]> != null:
+              - if <[animator]> == null:
+                - define animation_list.<[animation.name]>.animators.<[o_uuid]>.frames <list>
+              - else:
                 - define keyframes <[animator.keyframes]>
                 - foreach <[keyframes]> as:keyframe:
                     - define anim_map.channel <[keyframe.channel]>
                     - define data_points <[keyframe.data_points].first>
                     - if <[anim_map.channel]> == rotation:
-                        - define anim_map.data <[data_points.x].to_radians>,<[data_points.y].to_radians>,<[data_points.z].to_radians>
+                        - define anim_map.data <[data_points.x].trim.to_radians>,<[data_points.y].trim.to_radians>,<[data_points.z].trim.to_radians>
                     - else:
                         - define anim_map.data <[data_points.x]>,<[data_points.y]>,<[data_points.z]>
                     - define anim_map.time <[keyframe.time]>
@@ -141,8 +143,6 @@ pmodels_load_bbmodel:
                     - define animation_list.<[animation.name]>.animators.<[o_uuid]>.frames:->:<[anim_map]>
                 #Time sort
                 - define animation_list.<[animation.name]>.animators.<[o_uuid]>.frames <[animation_list.<[animation.name]>.animators.<[o_uuid]>.frames].sort_by_value[get[time]]>
-              - else:
-                - define animation_list.<[animation.name]>.animators.<[o_uuid]>.frames <list>
         # =============== Item model file generation ===============
         - if <util.has_file[<[override_item_filepath]>]>:
             - ~fileread path:<[override_item_filepath]> save:override_item
@@ -215,8 +215,9 @@ pmodels_load_bbmodel:
         # Final clear of temp data
         - flag server pmodels_data.temp_<[animation_file]>:!
     # Set the animations
-    - flag server pmodels_data.animations_player_model_template_norm:<[animation_list]>
-    - flag server pmodels_data.animations_player_model_template_slim:<[animation_list]>
+    - if <[animation_list].any||false>:
+        - flag server pmodels_data.animations_player_model_template_norm:<[animation_list]>
+        - flag server pmodels_data.animations_player_model_template_slim:<[animation_list]>
     # ============= Template Loading ===============
     #TODO:
     #- No longer need the json files and give ability to customize custom model data in pmodels config
@@ -229,6 +230,8 @@ pmodels_load_bbmodel:
     - if <[norm_data]> == null || <[slim_data]> == null:
       - debug error "Could not find template files in data/pmodels/templates"
       - stop
+    - flag server pmodels_data.template_data.norm:<[norm_data]>
+    - flag server pmodels_data.template_data.slim:<[slim_data]>
     - define norm_models <[norm_data.models]>
     - define slim_models <[slim_data.models]>
     # Texture path for player model
