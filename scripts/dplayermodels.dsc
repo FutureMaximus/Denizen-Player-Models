@@ -10,15 +10,14 @@
 # @Contributors Max^, mcmonkey
 # @Special thanks to mcmonkey for creating dmodels and making this possible for everyone!
 # @date 2022/06/03
-# @updated 2022/06/29
+# @updated 2022/07/10
 # @denizen-build REL-1772
-# @script-version 1.2 BETA
+# @script-version 1.3 BETA
 # @Github https://github.com/FutureMaximus/Denizen-Player-Models
 ##Note: This will not work Denizen release version 1771 or below.
-##Update 1.2 Info:
-    # You can now simply drop your animation block bench file in the animations folder
-    # Any external bones inside the animation will be put into a resource pack
-    # Changed template files and file paths
+##Update 1.3 Info:
+    # Implemented quaternions for the vector rotations
+    # Fixed console error message when not specifying a fake to player
 
 ##NOTICE: This will not work on minecraft versions below 1.17 and will not work with any other
 ##rendertype_entity_translucent core shader files it must be the one provided by mccosmetics or here.
@@ -86,7 +85,7 @@ pmodel_base_command:
   name: denizenplayermodels
   usage: /denizenplayermodels
   aliases:
-  - pmodel
+  - pmodels
   description: Pmodel command
   permission: op.op
   script:
@@ -104,6 +103,8 @@ pmodel_base_command:
 # # To spawn the player model that only shows for one player (useful for cutscenes)
 # - run pmodels_spawn_model def.location:<player.location> def.player:<player[FutureMaximus]> def.show_to:<player[FutureMaximus]> save:spawned
 # - define root <entry[spawned].created_queue.determination.first>
+# # To change the skin of a spawned player model (Input can be an npc such as <npc[0]>)
+# - run pmodels_change_skin def.player:<player[FutureMaximus]> def.root_entity:<[root]>
 # # To move the whole player model
 # - teleport <[root]> <player.location>
 # - run pmodels_reset_model_position def.root_entity:<[root]>
