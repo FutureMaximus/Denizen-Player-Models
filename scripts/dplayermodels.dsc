@@ -16,7 +16,6 @@
 # @Github https://github.com/FutureMaximus/Denizen-Player-Models
 ##Note: This will not work Denizen release version 1771 or below.
 ##Update 1.3 Info:
-    # Implemented quaternions for the vector rotations
     # Fixed console error message when not specifying a fake to player
 
 ##NOTICE: This will not work on minecraft versions below 1.17 and will not work with any other
