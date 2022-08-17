@@ -117,9 +117,6 @@ pmodels_load_bbmodel:
         - foreach <[data.animations]||<list>> as:animation:
             - define anim_count:++
             - define animation_list.<[animation.name]>.loop <[animation.loop]>
-            - define animation_list.<[animation.name]>.override <[animation.override]>
-            - define animation_list.<[animation.name]>.anim_time_update <[animation.anim_time_update]>
-            - define animation_list.<[animation.name]>.blend_weight <[animation.blend_weight]>
             - define animation_list.<[animation.name]>.length <[animation.length]>
             - define animator_data <[animation.animators]||<list>>
             # If the animation contains the outliners gather the data otherwise make an empty frame
@@ -132,17 +129,39 @@ pmodels_load_bbmodel:
               - else:
                 - define keyframes <[animator.keyframes]>
                 - foreach <[keyframes]> as:keyframe:
-                    - define anim_map.channel <[keyframe.channel]>
+                    - define channel <[keyframe.channel]>
+                    - definemap anim_map channel:<[channel]> time:<[keyframe.time]> interpolation:<[keyframe.interpolation]>
                     - define data_points <[keyframe.data_points].first>
-                    - if <[anim_map.channel]> == rotation:
+                    - if <[channel]> == rotation:
                         - define anim_map.data <[data_points.x].trim.to_radians>,<[data_points.y].trim.to_radians>,<[data_points.z].trim.to_radians>
                     - else:
-                        - define anim_map.data <[data_points.x]>,<[data_points.y]>,<[data_points.z]>
-                    - define anim_map.time <[keyframe.time]>
-                    - define anim_map.interpolation <[keyframe.interpolation]>
-                    - define animation_list.<[animation.name]>.animators.<[o_uuid]>.frames:->:<[anim_map]>
+                        - define anim_map.data <[data_points.x].trim>,<[data_points.y].trim>,<[data_points.z].trim>
+                    - define animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.<[channel]>:->:<[anim_map]>
                 #Time sort
-                - define animation_list.<[animation.name]>.animators.<[o_uuid]>.frames <[animation_list.<[animation.name]>.animators.<[o_uuid]>.frames].sort_by_value[get[time]]>
+                - if <[animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.position]||null> != null:
+                    - define animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.position <[animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.position].sort_by_value[get[time]]>
+                - if <[animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.rotation]||null> != null:
+                    - define animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.rotation <[animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.rotation].sort_by_value[get[time]]>
+            #Set before and after data based on interpolation methods
+            - foreach <[animation_list.<[animation.name]>.animators]> key:a_uuid as:keyframe:
+              - foreach position|rotation as:channel:
+                - define new_frame_list:!
+                - define frame_list <[keyframe.frames.<[channel]>]||null>
+                - if <[frame_list]> == null:
+                  - foreach next
+                - foreach <[frame_list]> as:frame:
+                    - define time <[frame.time]>
+                    - define new_frame <[frame]>
+                    - define after <[frame_list].filter[get[time].is_more_than[<[time]>]].first||<[frame]>>
+                    - define new_frame.after <[after]>
+                    - if <[frame.interpolation]> == catmullrom:
+                        - define before_extra <[frame_list].filter[get[time].is_less_than[<[time]>]].last||<[frame]>>
+                        - define new_frame.before_extra <[before_extra]>
+                        - define after_extra <[frame_list].filter[get[time].is_more_than[<[after.time]>]].first||<[after]>>
+                        - define new_frame.after_extra <[after_extra]>
+                    - define new_frame_list:->:<[new_frame]>
+                - define animation_list.<[animation.name]>.animators.<[a_uuid]>.frames.<[channel]>:<[new_frame_list]||<list>>
+            #- ~filewrite path:data/pmodels/debug/<[animation.name]>.json data:<[animation_list.<[animation.name]>.animators].to_json[native_types=true;indent=4].utf8_encode>
         # =============== Item model file generation ===============
         - if <util.has_file[<[override_item_filepath]>]>:
             - ~fileread path:<[override_item_filepath]> save:override_item
