@@ -19,6 +19,18 @@ pmodels_skin_type:
     - else:
       - determine null
 
+pmodels_stress_test:
+    type: task
+    debug: false
+    script:
+    - repeat 25:
+      - narrate <server.recent_tps>
+      - narrate COUNT:<[value]>
+      - run pmodels_spawn_model def.location:<player.location> def.player:<player> save:spawned
+      - define root <entry[spawned].created_queue.determination.first>
+      - run pmodels_animate def.root_entity:<[root]> def.animation:high_knees
+      - wait 1s
+
 pmodel_part_stand:
     type: entity
     debug: false
@@ -158,8 +170,7 @@ pmodels_animate:
           - else:
             - equip <entry[spawned].spawned_entity> head:<item[<[part.item]>]>
           - flag <entry[spawned].spawned_entity> pmodel_def_pose:<[pose]>
-          - define name <[part.name]>
-          - flag <entry[spawned].spawned_entity> pmodel_def_name:<[name]>
+          - flag <entry[spawned].spawned_entity> pmodel_def_name:<[part.name]>
           - flag <entry[spawned].spawned_entity> pmodel_def_uuid:<[id]>
           - flag <entry[spawned].spawned_entity> pmodel_def_pos:<location[0,0,0]>
           - flag <entry[spawned].spawned_entity> pmodel_def_item:<item[<[part.item]>]>
@@ -401,38 +412,10 @@ pmodels_move_to_frame:
       - define framedata.position 0,0,0
       - define framedata.rotation 0,0,0
       - foreach position|rotation as:channel:
-        - define relevant_frames <[animator.frames].filter[get[channel].equals[<[channel]>]]>
-        - define before_frame <[relevant_frames].filter[get[time].is_less_than_or_equal_to[<[timespot]>]].last||null>
-        - define after_frame <[relevant_frames].filter[get[time].is_more_than_or_equal_to[<[timespot]>]].first||null>
-        - if <[before_frame]> == null:
-          - define before_frame <[after_frame]>
-        - if <[after_frame]> == null:
-          - define after_frame <[before_frame]>
-        - if <[before_frame]> == null:
-          - define data 0,0,0
-        - else:
-          - define time_range <[after_frame.time].sub[<[before_frame.time]>]>
-          - if <[time_range]> == 0:
-            - define time_percent 0
-          - else:
-            - define time_percent <[timespot].sub[<[before_frame.time]>].div[<[time_range]>]>
-          - choose <[before_frame.interpolation]>:
-              - case catmullrom:
-                - define before_extra <[relevant_frames].filter[get[time].is_less_than[<[before_frame.time]>]].last||null>
-                - if <[before_extra]> == null:
-                    - define before_extra <[animation_data.loop].equals[loop].if_true[<[relevant_frames].last>].if_false[<[before_frame]>]>
-                - define after_extra <[relevant_frames].filter[get[time].is_more_than[<[after_frame.time]>]].first||null>
-                - if <[after_extra]> == null:
-                    - define after_extra <[animation_data.loop].equals[loop].if_true[<[relevant_frames].first>].if_false[<[after_frame]>]>
-                - define p0 <[before_extra.data].as_location>
-                - define p1 <[before_frame.data].as_location>
-                - define p2 <[after_frame.data].as_location>
-                - define p3 <[after_extra.data].as_location>
-                - define data <proc[dmodels_catmullrom_proc].context[<[p0]>|<[p1]>|<[p2]>|<[p3]>|<[time_percent]>]>
-              - case linear:
-                - define data <[after_frame.data].as_location.sub[<[before_frame.data]>].mul[<[time_percent]>].add[<[before_frame.data]>].xyz>
-              - case step:
-                - define data <[before_frame.data]>
+        - define relevant_frames <[animator.frames.<[channel]>]||null>
+        - if <[relevant_frames]> == null:
+          - foreach next
+        - define data <[relevant_frames].proc[pmodels_interpolation_data].context[<[timespot]>|<[animation_data.loop]>]>
         - define framedata.<[channel]> <[data]>
       - define this_part <[model_data.<[part_id]>]>
       - define this_rots <[this_part.rotation].split[,].parse[to_radians]>
@@ -450,7 +433,8 @@ pmodels_move_to_frame:
       - define parentage.<[part_id]>.rotation:<[new_rot]>
       - define parentage.<[part_id]>.offset:<[rot_offset].add[<[parent_offset]>]>
       - foreach <[root_entity].flag[pmodel_anim_part.<[part_id]>]||<list>> as:ent:
-        - choose <[ent].flag[pmodel_def_type]>:
+        - define def_type <[ent].flag[pmodel_def_type]>
+        - choose <[def_type]>:
           - case default:
             - define center <[root_entity].location.with_pitch[0].below[1.379].relative[0.32,0,0]>
             - teleport <[ent]> <[center].add[<[new_pos].div[15.98].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
@@ -460,12 +444,43 @@ pmodels_move_to_frame:
         - adjust <[ent]> reset_client_location
         - define radian_rot <[new_rot].xyz.split[,]>
         - define pose <[radian_rot].get[1]>,<[radian_rot].get[2]>,<[radian_rot].get[3]>
-        - choose <[ent].flag[pmodel_def_type]>:
+        - choose <[def_type]>:
           - case default:
             - adjust <[ent]> armor_pose:[right_arm=<[pose]>]
           - case external:
             - adjust <[ent]> armor_pose:[head=<[pose]>]
         - adjust <[ent]> send_update_packets
+
+pmodels_interpolation_data:
+    type: procedure
+    debug: false
+    definitions: relevant_frames|timespot|loop
+    script:
+    - define before_frame <[relevant_frames].filter[get[time].is_less_than_or_equal_to[<[timespot]>]].last||null>
+    - define after_frame <[before_frame.after]>
+    - if <[before_frame]> == null:
+      - define data 0,0,0
+    - else:
+      - define b_time <[before_frame.time]>
+      - define time_range <[after_frame.time].sub[<[b_time]>]>
+      - if <[time_range]> == 0:
+        - define time_percent 0
+      - else:
+        - define time_percent <[timespot].sub[<[b_time]>].div[<[time_range]>]>
+      - choose <[before_frame.interpolation]>:
+          - case catmullrom:
+            - define before_extra <[before_frame.before_extra]||null>
+            - if <[before_extra]> == null:
+                - define before_extra <[loop].equals[loop].if_true[<[relevant_frames].last>].if_false[<[before_frame]>]>
+            - define after_extra <[before_frame.after_extra]||null>
+            - if <[after_extra]> == null:
+                - define after_extra <[loop].equals[loop].if_true[<[relevant_frames].first>].if_false[<[after_frame]>]>
+            - define data <proc[dmodels_catmullrom_proc].context[<[before_extra.data].as_location>|<[before_frame.data].as_location>|<[after_frame.data].as_location>|<[after_extra.data].as_location>|<[time_percent]>]>
+          - case linear:
+            - define data <[after_frame.data].as_location.sub[<[before_frame.data]>].mul[<[time_percent]>].add[<[before_frame.data]>].xyz>
+          - case step:
+            - define data <[before_frame.data]>
+    - determine <[data]>
 
 pmodels_rot_proc:
     type: procedure
@@ -482,26 +497,26 @@ pmodels_load_event:
     debug: false
     events:
       after server start:
-      - if <script[pmodel_config].data_key[config].get[load_on_start].equals[true]>:
+      - if <script[pmodel_config].data_key[config].get[load_on_start].equals[false]>:
         - ~run pmodels_load_bbmodel
 
 pmodels_animator:
     type: world
     debug: false
     events:
-        on server start priority:-1000:
-        # Cleanup
-        - flag server pmodels_data:!
-        - flag server pmodels_anim_active:!
         on tick server_flagged:pmodels_anim_active:
         - foreach <server.flag[pmodels_anim_active]> key:root_id:
           - define root <entity[<[root_id]>]||null>
           - if <[root].is_spawned||false>:
-            - run pmodels_move_to_frame def.root_entity:<[root]> def.animation:<[root].flag[pmodels_animation_id]> def.timespot:<[root].flag[pmodels_anim_time].div[20]>
+            - ~run pmodels_move_to_frame def.root_entity:<[root]> def.animation:<[root].flag[pmodels_animation_id]> def.timespot:<[root].flag[pmodels_anim_time].div[20]>
             - flag <[root]> pmodels_anim_time:++
+        on server start priority:-1000:
+        # Cleanup
+        - flag server pmodels_data:!
+        - flag server pmodels_anim_active:!
         #skin type
         after player joins:
         - wait 1t
-        - define skin_type <proc[pmodels_skin_type].context[<player>]>
+        - define skin_type <player.proc[pmodels_skin_type]>
         - flag <player> pmodels_skin_type:<[skin_type]>
 ####################################
