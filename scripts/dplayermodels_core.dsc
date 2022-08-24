@@ -19,18 +19,6 @@ pmodels_skin_type:
     - else:
       - determine null
 
-pmodels_stress_test:
-    type: task
-    debug: false
-    script:
-    - repeat 25:
-      - narrate <server.recent_tps>
-      - narrate COUNT:<[value]>
-      - run pmodels_spawn_model def.location:<player.location> def.player:<player> save:spawned
-      - define root <entry[spawned].created_queue.determination.first>
-      - run pmodels_animate def.root_entity:<[root]> def.animation:high_knees
-      - wait 1s
-
 pmodel_part_stand:
     type: entity
     debug: false
@@ -60,22 +48,26 @@ pmodels_spawn_model:
     debug: false
     definitions: location|player|fake_to
     script:
-    - define npc <npc[<[player]>].if_null[n]>
-    - define player <player[<[player]>].if_null[n]>
+    - define player <[player]||null>
     - define fake_to <[fake_to]||null>
-    - if <[player].equals[n]> && <[npc].equals[n]>:
-      - debug error "[Denizen Player Models] Must specify a player."
+    - if <[fake_to]> != null && !<[fake_to].is_player||true>:
+      - debug error "[Denizen Player Models] Fake to is not a player"
       - stop
-    #determine skin type
-    - if !<[npc].equals[n]> && <[player].equals[n]>:
-      - define player <[npc]>
-    - if <[player].is_npc>:
+    - if <[player].equals[null]>:
+      - debug error "[Denizen Player Models] Must specify a player or npc to spawn the player model."
+      - stop
+    #Determine skin
+    - if <[player].is_npc||false>:
       - define skin_type <proc[pmodels_skin_type].context[<[player]>]>
-    - else:
+    - else if <[player].is_player||false>:
       - define skin_type <[player].flag[pmodels_skin_type]||null>
       - if <[skin_type]> == null:
-        - define skin_type <proc[pmodels_skin_type].context[<player>]>
-        - flag <player> pmodels_skin_type:<[skin_type]>
+        - define skin_type <proc[pmodels_skin_type].context[<[player]>]>
+        - flag <[player]> pmodels_skin_type:<[skin_type]>
+    - else:
+      - debug error "[Denizen Player Models] Could not determine a player or npc."
+      - stop
+    #Classic or slim model
     - choose <[skin_type]>:
       - case classic:
         - define model_name player_model_template_norm
@@ -95,11 +87,12 @@ pmodels_spawn_model:
     - flag <[root_entity]> pmodel_model_id:<[model_name]>
     #Skin type of player model
     - flag <[root_entity]> skin_type:<[skin_type]>
+    #Skull skin
     - define skull_skin <[player].skull_skin>
     - foreach <server.flag[pmodels_data.model_<[model_name]>]> key:id as:part:
         - if !<[part.item].exists>:
             - foreach next
-        #if the part is external skip it and store it as data to use later
+        #If the part is external skip it and store it as data to use later
         - else if <[part.type]> == external:
             - define external_parts.<[id]> <[part]>
             - foreach next
@@ -107,30 +100,30 @@ pmodels_spawn_model:
         - define offset <location[<[part.origin]>].div[15.98]>
         - define rots <[part.rotation].split[,].parse[to_radians]>
         - define pose <[rots].get[1].mul[-1]>,<[rots].get[2].mul[-1]>,<[rots].get[3]>
-        #when going too far from the player model textures can get messed up setting the tracking range to 256 fixes the issue
-        - spawn pmodel_part_stand[armor_pose=[right_arm=<[pose]>];tracking_range=256] <[center].add[<[offset].rotate_around_y[<[yaw_mod].mul[-1]>]>]> save:spawned
+        #Item
         - adjust <item[<[part.item]>]> skull_skin:<[skull_skin]> save:item
-        - define part.item <entry[item].result>
-        #fakeequip if fake_to is being used
-        - if <player[<[fake_to]>]||null> != null:
-          - if !<[root_entity].has_flag[fake_to]>:
-            - flag <[root_entity]> fake_to:<[fake_to]>
-          - fakeequip <entry[spawned].spawned_entity> for:<[fake_to]> hand:<[part.item]>
+        - define part_item <entry[item].result>
+        #When going too far from the player model textures can get messed up setting the tracking range to 256 fixes the issue
+        - define loc <[center].add[<[offset].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
+        - if <[fake_to]> != null:
+          - fakespawn pmodel_part_stand[armor_pose=[right_arm=<[pose]>];tracking_range=256] <[loc]> players:<[fake_to]> d:infinite save:spawned
+          - define spawned <entry[spawned].faked_entity>
+          - adjust <[fake_to]> fake_equipment:<[spawned]>|hand|<[part_item]>
         - else:
-          - equip <entry[spawned].spawned_entity> right_arm:<[part.item]>
-        - flag <entry[spawned].spawned_entity> pmodel_def_pose:<[pose]>
-        - define name <[part.name]>
-        - flag <entry[spawned].spawned_entity> pmodel_def_name:<[name]>
-        - flag <entry[spawned].spawned_entity> pmodel_def_uuid:<[id]>
-        - flag <entry[spawned].spawned_entity> pmodel_def_pos:<location[0,0,0]>
-        - flag <entry[spawned].spawned_entity> pmodel_def_item:<item[<[part.item]>]>
-        - flag <entry[spawned].spawned_entity> pmodel_def_offset:<[offset]>
-        - flag <entry[spawned].spawned_entity> pmodel_root:<entry[root].spawned_entity>
-        - flag <entry[spawned].spawned_entity> pmodel_def_type:default
-        - flag <entry[root].spawned_entity> pmodel_parts:->:<entry[spawned].spawned_entity>
-        - flag <entry[root].spawned_entity> pmodel_anim_part.<[id]>:->:<entry[spawned].spawned_entity>
-    - define external_parts <[external_parts]||null>
-    - if <[external_parts]> != null:
+          - spawn pmodel_part_stand[armor_pose=[right_arm=<[pose]>];tracking_range=256] <[loc]> persistent save:spawned
+          - define spawned <entry[spawned].spawned_entity>
+          - equip <[spawned]> right_arm:<[part_item]>
+        - flag <[spawned]> pmodel_def_pose:<[pose]>
+        - flag <[spawned]> pmodel_def_name:<[part.name]>
+        - flag <[spawned]> pmodel_def_uuid:<[id]>
+        - flag <[spawned]> pmodel_def_pos:<location[0,0,0]>
+        - flag <[spawned]> pmodel_def_item:<item[<[part.item]>]>
+        - flag <[spawned]> pmodel_def_offset:<[offset]>
+        - flag <[spawned]> pmodel_root:<[root_entity]>
+        - flag <[spawned]> pmodel_def_type:default
+        - flag <[root_entity]> pmodel_parts:->:<[spawned]>
+        - flag <[root_entity]> pmodel_anim_part.<[id]>:->:<[spawned]>
+    - if <[external_parts]||null> != null:
       - flag <[root_entity]> external_parts:<[external_parts]>
     - determine <[root_entity]>
 
@@ -200,8 +193,8 @@ pmodels_remove_model:
     definitions: root_entity
     script:
     - remove <[root_entity].flag[pmodel_parts]>
-    - remove <[root_entity]>
     - flag <[root_entity]> pmodel_external_parts:!
+    - remove <[root_entity]>
 
 pmodels_remove_external_parts:
     type: task
@@ -457,7 +450,7 @@ pmodels_interpolation_data:
     definitions: relevant_frames|timespot|loop
     script:
     - define before_frame <[relevant_frames].filter[get[time].is_less_than_or_equal_to[<[timespot]>]].last||null>
-    - define after_frame <[before_frame.after]>
+    - define after_frame <[before_frame.after]||<[before_frame]>>
     - if <[before_frame]> == null:
       - define data 0,0,0
     - else:
@@ -475,7 +468,7 @@ pmodels_interpolation_data:
             - define after_extra <[before_frame.after_extra]||null>
             - if <[after_extra]> == null:
                 - define after_extra <[loop].equals[loop].if_true[<[relevant_frames].first>].if_false[<[after_frame]>]>
-            - define data <proc[dmodels_catmullrom_proc].context[<[before_extra.data].as_location>|<[before_frame.data].as_location>|<[after_frame.data].as_location>|<[after_extra.data].as_location>|<[time_percent]>]>
+            - define data <proc[pmodels_catmullrom_proc].context[<[before_extra.data].as_location>|<[before_frame.data].as_location>|<[after_frame.data].as_location>|<[after_extra.data].as_location>|<[time_percent]>]>
           - case linear:
             - define data <[after_frame.data].as_location.sub[<[before_frame.data]>].mul[<[time_percent]>].add[<[before_frame.data]>].xyz>
           - case step:
@@ -489,6 +482,38 @@ pmodels_rot_proc:
     script:
     - determine <[loc].rotate_around_x[<[rot].x.mul[-1]>].rotate_around_y[<[rot].y.mul[-1]>].rotate_around_z[<[rot].z>]>
 
+# Procedure script by mcmonkey creator of DModels https://github.com/mcmonkeyprojects/DenizenModels
+pmodels_catmullrom_proc:
+    type: procedure
+    debug: false
+    definitions: p0|p1|p2|p3|t
+    script:
+    # Zero distances are impossible to calculate
+    - if <[p2].sub[<[p1]>].vector_length> < 0.01:
+        - determine <[p2]>
+    # Based on https://en.wikipedia.org/wiki/Centripetal_Catmull%E2%80%93Rom_spline#Code_example_in_Unreal_C++
+    # With safety checks added for impossible situations
+    - define t0 0
+    - define t1 <proc[dcutscene_catmullrom_get_t].context[0|<[p0]>|<[p1]>]>
+    - define t2 <proc[dcutscene_catmullrom_get_t].context[<[t1]>|<[p1]>|<[p2]>]>
+    - define t3 <proc[dcutscene_catmullrom_get_t].context[<[t2]>|<[p2]>|<[p3]>]>
+    # Divide-by-zero safety check
+    - if <[t1].abs> < 0.001 || <[t2].sub[<[t1]>].abs> < 0.001 || <[t2].abs> < 0.001 || <[t3].sub[<[t1]>].abs> < 0.001:
+        - determine <[p2].sub[<[p1]>].mul[<[t]>].add[<[p1]>]>
+    - define t <[t2].sub[<[t1]>].mul[<[t]>].add[<[t1]>]>
+    # ( t1-t )/( t1-t0 )*p0 + ( t-t0 )/( t1-t0 )*p1;
+    - define a1 <[p0].mul[<[t1].sub[<[t]>].div[<[t1]>]>].add[<[p1].mul[<[t].div[<[t1]>]>]>]>
+    # ( t2-t )/( t2-t1 )*p1 + ( t-t1 )/( t2-t1 )*p2;
+    - define a2 <[p1].mul[<[t2].sub[<[t]>].div[<[t2].sub[<[t1]>]>]>].add[<[p2].mul[<[t].sub[<[t1]>].div[<[t2].sub[<[t1]>]>]>]>]>
+    # FVector A3 = ( t3-t )/( t3-t2 )*p2 + ( t-t2 )/( t3-t2 )*p3;
+    - define a3 <[a1].mul[<[t2].sub[<[t]>].div[<[t2]>]>].add[<[a2].mul[<[t].div[<[t2]>]>]>]>
+    # FVector B1 = ( t2-t )/( t2-t0 )*A1 + ( t-t0 )/( t2-t0 )*A2;
+    - define b1 <[a1].mul[<[t2].sub[<[t]>].div[<[t2]>]>].add[<[a2].mul[<[t].div[<[t2]>]>]>]>
+    # FVector B2 = ( t3-t )/( t3-t1 )*A2 + ( t-t1 )/( t3-t1 )*A3;
+    - define b2 <[a2].mul[<[t3].sub[<[t]>].div[<[t3].sub[<[t1]>]>]>].add[<[a3].mul[<[t].sub[<[t1]>].div[<[t3].sub[<[t1]>]>]>]>]>
+    # FVector C  = ( t2-t )/( t2-t1 )*B1 + ( t-t1 )/( t2-t1 )*B2;
+    - determine <[b1].mul[<[t2].sub[<[t]>].div[<[t2].sub[<[t1]>]>]>].add[<[b2].mul[<[t].sub[<[t1]>].div[<[t2].sub[<[t1]>]>]>]>]>
+
 #############################
 
 ##Events ########################
@@ -497,7 +522,7 @@ pmodels_load_event:
     debug: false
     events:
       after server start:
-      - if <script[pmodel_config].data_key[config].get[load_on_start].equals[false]>:
+      - if <script[pmodel_config].data_key[config].get[load_on_start].equals[true]>:
         - ~run pmodels_load_bbmodel
 
 pmodels_animator:
@@ -508,7 +533,7 @@ pmodels_animator:
         - foreach <server.flag[pmodels_anim_active]> key:root_id:
           - define root <entity[<[root_id]>]||null>
           - if <[root].is_spawned||false>:
-            - ~run pmodels_move_to_frame def.root_entity:<[root]> def.animation:<[root].flag[pmodels_animation_id]> def.timespot:<[root].flag[pmodels_anim_time].div[20]>
+            - run pmodels_move_to_frame def.root_entity:<[root]> def.animation:<[root].flag[pmodels_animation_id]> def.timespot:<[root].flag[pmodels_anim_time].div[20]>
             - flag <[root]> pmodels_anim_time:++
         on server start priority:-1000:
         # Cleanup
