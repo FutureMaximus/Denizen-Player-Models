@@ -82,8 +82,12 @@ pmodels_spawn_model:
     #1.379 seems to be the best for the player model and the .relative tag centers the location
     - define center <[location].with_pitch[0].below[1.379].relative[0.32,0,0]>
     - define yaw_mod <[location].yaw.add[180].to_radians>
-    - spawn pmodel_part_stand <[location]> save:root
-    - define root_entity <entry[root].spawned_entity>
+    - if <[fake_to]> != null:
+      - fakespawn pmodel_part_stand <[location]> players:<[fake_to]> d:infinite save:root
+      - define root_entity <entry[root].faked_entity>
+    - else:
+      - spawn pmodel_part_stand <[location]> save:root
+      - define root_entity <entry[root].spawned_entity>
     - flag <[root_entity]> pmodel_model_id:<[model_name]>
     #Skin type of player model
     - flag <[root_entity]> skin_type:<[skin_type]>
@@ -420,8 +424,8 @@ pmodels_move_to_frame:
       - define parent_raw_offset <[model_data.<[parent_id]>.origin]||0,0,0>
       - define rel_offset <location[<[this_part.origin]>].sub[<[parent_raw_offset]>]>
       - define rot_offset <[rel_offset].proc[pmodels_rot_proc].context[<[parent_rot]>]>
-      - define new_pos <[framedata.position].as_location.proc[pmodels_rot_proc].context[<[parent_rot]>].add[<[rot_offset]>].add[<[parent_pos]>]>
-      - define new_rot <[framedata.rotation].as_location.add[<[parent_rot]>].add[<[pose]>]>
+      - define new_pos <[framedata.position].as[location].proc[pmodels_rot_proc].context[<[parent_rot]>].add[<[rot_offset]>].add[<[parent_pos]>]>
+      - define new_rot <[framedata.rotation].as[location].add[<[parent_rot]>].add[<[pose]>]>
       - define parentage.<[part_id]>.position:<[new_pos]>
       - define parentage.<[part_id]>.rotation:<[new_rot]>
       - define parentage.<[part_id]>.offset:<[rot_offset].add[<[parent_offset]>]>
@@ -468,9 +472,9 @@ pmodels_interpolation_data:
             - define after_extra <[before_frame.after_extra]||null>
             - if <[after_extra]> == null:
                 - define after_extra <[loop].equals[loop].if_true[<[relevant_frames].first>].if_false[<[after_frame]>]>
-            - define data <proc[pmodels_catmullrom_proc].context[<[before_extra.data].as_location>|<[before_frame.data].as_location>|<[after_frame.data].as_location>|<[after_extra.data].as_location>|<[time_percent]>]>
+            - define data <proc[pmodels_catmullrom_proc].context[<[before_extra.data].as[location]>|<[before_frame.data].as[location]>|<[after_frame.data].as[location]>|<[after_extra.data].as[location]>|<[time_percent]>]>
           - case linear:
-            - define data <[after_frame.data].as_location.sub[<[before_frame.data]>].mul[<[time_percent]>].add[<[before_frame.data]>].xyz>
+            - define data <[after_frame.data].as[location].sub[<[before_frame.data]>].mul[<[time_percent]>].add[<[before_frame.data]>].xyz>
           - case step:
             - define data <[before_frame.data]>
     - determine <[data]>
@@ -481,6 +485,14 @@ pmodels_rot_proc:
     definitions: loc|rot
     script:
     - determine <[loc].rotate_around_x[<[rot].x.mul[-1]>].rotate_around_y[<[rot].y.mul[-1]>].rotate_around_z[<[rot].z>]>
+
+pmodels_catmullrom_get_t:
+    type: procedure
+    debug: false
+    definitions: t|p0|p1
+    script:
+    # This is more complex for different alpha values, but alpha=1 compresses down to a '.vector_length' call conveniently
+    - determine <[p1].sub[<[p0]>].vector_length.add[<[t]>]>
 
 # Procedure script by mcmonkey creator of DModels https://github.com/mcmonkeyprojects/DenizenModels
 pmodels_catmullrom_proc:
