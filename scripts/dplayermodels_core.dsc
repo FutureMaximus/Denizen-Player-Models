@@ -136,18 +136,23 @@ pmodels_animate:
     debug: false
     definitions: root_entity|animation
     script:
+    - if !<[root_entity].is_spawned||false>:
+      - debug error "[Denizen Player Models] <red>Cannot animate model <[root_entity]>, model not spawned"
+      - stop
     - run pmodels_reset_model_position def.root_entity:<[root_entity]>
     - define animation_data <server.flag[pmodels_data.animations_<[root_entity].flag[pmodel_model_id]>.<[animation]>]||null>
     - if <[animation_data]> == null:
         - debug error "[Denizen Player Models] <red>Cannot animate entity <[root_entity].uuid> due to model <[root_entity].flag[pmodel_model_id]> not having an animation named <[animation]>."
         - stop
-    #Show to
-    - if <[root_entity].has_flag[fake_to]>:
-      - define fake_to <[root_entity].flag[fake_to]>
-    - else:
-      - define fake_to null
+    - flag <[root_entity]> pmodels_animation_id:<[animation]>
+    - flag <[root_entity]> pmodels_anim_time:0
+    - flag server pmodels_anim_active.<[root_entity].uuid>
     #spawn external bones if they exist in the animation
     - if <[root_entity].has_flag[external_parts]>:
+      - if <[root_entity].has_flag[fake_to]>:
+        - define fake_to <[root_entity].flag[fake_to]>
+      - else:
+        - define fake_to null
       - define center <[root_entity].location.with_pitch[0].below[0.7]>
       - define yaw_mod <[root_entity].location.yaw.add[180].to_radians>
       - foreach <[root_entity].flag[external_parts]> key:id as:part:
@@ -177,9 +182,7 @@ pmodels_animate:
           - flag <[root_entity]> pmodel_parts:->:<entry[spawned].spawned_entity>
           - flag <[root_entity]> pmodel_external_parts:->:<entry[spawned].spawned_entity>
           - flag <[root_entity]> pmodel_anim_part.<[id]>:->:<entry[spawned].spawned_entity>
-    - flag <[root_entity]> pmodels_animation_id:<[animation]>
-    - flag <[root_entity]> pmodels_anim_time:0
-    - flag server pmodels_anim_active.<[root_entity].uuid>
+    - flag server pmodels_anim_active:->:<[root_entity]>
 
 pmodels_end_animation:
     type: task
@@ -542,8 +545,7 @@ pmodels_animator:
     debug: false
     events:
         on tick server_flagged:pmodels_anim_active:
-        - foreach <server.flag[pmodels_anim_active]> key:root_id:
-          - define root <entity[<[root_id]>]||null>
+        - foreach <server.flag[pmodels_anim_active]> as:root:
           - if <[root].is_spawned||false>:
             - run pmodels_move_to_frame def.root_entity:<[root]> def.animation:<[root].flag[pmodels_animation_id]> def.timespot:<[root].flag[pmodels_anim_time].div[20]>
             - flag <[root]> pmodels_anim_time:++
