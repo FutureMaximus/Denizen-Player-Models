@@ -118,6 +118,10 @@ pmodel_emote_task_stop:
     - wait 2t
     - cast INVISIBILITY remove <[player]>
 
+#TODO:
+#- Fix issue where model stops at space that should allow passage
+#- Fix issue where player model goes up a wall infinitely
+#- Fix issue where player model stops at carpet
 pmodel_emote_vehicle_task:
     type: task
     debug: false
@@ -273,17 +277,17 @@ pmodel_emote_vehicle_task:
       - define ray <[ray_ent].location.ray_trace[range=<[max_r].add[1]>;return=precise;nonsolids=false;fluids=true].if_null[n]>
       - define impact <[ray_ent].location.ray_trace[range=<[max_r].add[1]>;return=normal;nonsolids=false;fluids=true].if_null[n]>
       - if !<[ray].equals[n]> && !<[impact].equals[n]>:
-            - define yaw <player.location.yaw>
-            - choose <[impact].simple>:
-              #ceiling
-              - case 0,-1,0:
-                - define rot_loc <[ray].below[1.5].with_yaw[<player.location.yaw>].forward[1].relative[<[cam_offset]>]>
-              #floor
-              - case 0,1,0:
-                - define rot_loc <[ray].below[2.3].forward[1.3].relative[<[cam_offset]>]>
-              #walls
-              - default:
-                - define rot_loc <[ray].below[1.1].with_yaw[<player.location.yaw>].forward[1.3].relative[<[cam_offset]>]>
+        - define yaw <player.location.yaw>
+        - choose <[impact].simple>:
+          #ceiling
+          - case 0,-1,0:
+            - define rot_loc <[ray].below[1.5].with_yaw[<player.location.yaw>].forward[1].relative[<[cam_offset]>]>
+          #floor
+          - case 0,1,0:
+            - define rot_loc <[ray].below[2.3].forward[1.3].relative[<[cam_offset]>]>
+          #walls
+          - default:
+            - define rot_loc <[ray].below[1.1].with_yaw[<player.location.yaw>].forward[1.3].relative[<[cam_offset]>]>
       - teleport <[mount]> <[rot_loc]>
       #the player model
       - teleport <[emote_ent]> <[vehicle].location.with_pitch[0]>
@@ -377,7 +381,8 @@ pmodels_emote_events:
     events:
         after player steers entity flagged:emote:
         - ratelimit <player> 1t
-        - ~run pmodel_emote_vehicle_task def:<context.forward>|<context.sideways>
+        - if <context.entity.has_flag[emote]>:
+          - ~run pmodel_emote_vehicle_task def:<context.forward>|<context.sideways>
         after player exits vehicle flagged:emote:
         - ratelimit <player> 1t
         - if <player.has_flag[emote_ent]> && <player.flag[emote_ent].is_spawned>:
