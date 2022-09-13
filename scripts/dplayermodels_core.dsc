@@ -85,6 +85,7 @@ pmodels_spawn_model:
     - if <[fake_to]> != null:
       - fakespawn pmodel_part_stand <[location]> players:<[fake_to]> d:infinite save:root
       - define root_entity <entry[root].faked_entity>
+      - flag <[root_entity]> fake_to:<[fake_to]>
     - else:
       - spawn pmodel_part_stand <[location]> save:root
       - define root_entity <entry[root].spawned_entity>
@@ -109,12 +110,13 @@ pmodels_spawn_model:
         - define part_item <entry[item].result>
         #When going too far from the player model textures can get messed up setting the tracking range to 256 fixes the issue
         - define loc <[center].add[<[offset].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
+        - define spawn_stand pmodel_part_stand[armor_pose=[right_arm=<[pose]>];tracking_range=256]
         - if <[fake_to]> != null:
-          - fakespawn pmodel_part_stand[armor_pose=[right_arm=<[pose]>];tracking_range=256] <[loc]> players:<[fake_to]> d:infinite save:spawned
+          - fakespawn <[spawn_stand]> <[loc]> players:<[fake_to]> d:infinite save:spawned
           - define spawned <entry[spawned].faked_entity>
           - adjust <[fake_to]> fake_equipment:<[spawned]>|hand|<[part_item]>
         - else:
-          - spawn pmodel_part_stand[armor_pose=[right_arm=<[pose]>];tracking_range=256] <[loc]> persistent save:spawned
+          - spawn <[spawn_stand]> <[loc]> persistent save:spawned
           - define spawned <entry[spawned].spawned_entity>
           - equip <[spawned]> right_arm:<[part_item]>
         - flag <[spawned]> pmodel_def_pose:<[pose]>
@@ -166,22 +168,25 @@ pmodels_animate:
           - define offset <location[<[part.origin]>].div[15.98]>
           - define rots <[part.rotation].split[,].parse[to_radians]>
           - define pose <[rots].get[1].mul[-1]>,<[rots].get[2].mul[-1]>,<[rots].get[3]>
-          - spawn pmodel_part_stand_small[armor_pose=[head=<[pose]>];tracking_range=256] <[center].add[<[offset].rotate_around_y[<[yaw_mod].mul[-1]>]>]> save:spawned
+          - define loc <[center].add[<[offset].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
+          - define spawn_stand pmodel_part_stand_small[equipment=[helmet=<[part.item]>];armor_pose=[head=<[pose]>];tracking_range=256]
           - if <[fake_to]> != null:
-            - fakeequip <entry[spawned].spawned_entity> for:<[fake_to]> head:<item[<[part.item]>]>
+            - fakespawn <[spawn_stand]> <[loc]> players:<[fake_to]> d:infinite save:spawned
+            - define spawned <entry[spawned].faked_entity>
           - else:
-            - equip <entry[spawned].spawned_entity> head:<item[<[part.item]>]>
-          - flag <entry[spawned].spawned_entity> pmodel_def_pose:<[pose]>
-          - flag <entry[spawned].spawned_entity> pmodel_def_name:<[part.name]>
-          - flag <entry[spawned].spawned_entity> pmodel_def_uuid:<[id]>
-          - flag <entry[spawned].spawned_entity> pmodel_def_pos:<location[0,0,0]>
-          - flag <entry[spawned].spawned_entity> pmodel_def_item:<item[<[part.item]>]>
-          - flag <entry[spawned].spawned_entity> pmodel_def_offset:<[offset]>
-          - flag <entry[spawned].spawned_entity> pmodel_root:<[root_entity]>
-          - flag <entry[spawned].spawned_entity> pmodel_def_type:external
-          - flag <[root_entity]> pmodel_parts:->:<entry[spawned].spawned_entity>
-          - flag <[root_entity]> pmodel_external_parts:->:<entry[spawned].spawned_entity>
-          - flag <[root_entity]> pmodel_anim_part.<[id]>:->:<entry[spawned].spawned_entity>
+            - spawn <[spawn_stand]> <[loc]> save:spawned
+            - define spawned <entry[spawned].spawned_entity>
+          - flag <[spawned]> pmodel_def_pose:<[pose]>
+          - flag <[spawned]> pmodel_def_name:<[part.name]>
+          - flag <[spawned]> pmodel_def_uuid:<[id]>
+          - flag <[spawned]> pmodel_def_pos:<location[0,0,0]>
+          - flag <[spawned]> pmodel_def_item:<item[<[part.item]>]>
+          - flag <[spawned]> pmodel_def_offset:<[offset]>
+          - flag <[spawned]> pmodel_root:<[root_entity]>
+          - flag <[spawned]> pmodel_def_type:external
+          - flag <[root_entity]> pmodel_parts:->:<[spawned]>
+          - flag <[root_entity]> pmodel_external_parts:->:<[spawned]>
+          - flag <[root_entity]> pmodel_anim_part.<[id]>:->:<[spawned]>
     - flag server pmodels_anim_active:->:<[root_entity]>
 
 pmodels_end_animation:
