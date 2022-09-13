@@ -7,14 +7,14 @@ pmodels_skin_type:
     debug: false
     definitions: player
     script:
-    - define npc <npc[<[player]>].if_null[n]>
-    - define player <player[<[player]>].if_null[n]>
-    - if !<[player].equals[n]>:
+    - define npc <npc[<[player]>]||null>
+    - define player <player[<[player]>]||null>
+    - if <[player]> != null:
       - if <[player].is_online>:
         - determine <util.parse_yaml[<player[<[player]>].skin_blob.before[;].base64_to_binary.utf8_decode>].deep_get[textures.skin.metadata.model]||classic>
       - else:
         - determine null
-    - else if !<[npc].equals[n]>:
+    - else if <[npc]> != null:
       - determine <util.parse_yaml[<npc[<[npc]>].skin_blob.before[;].base64_to_binary.utf8_decode>].deep_get[textures.skin.metadata.model]||classic>
     - else:
       - determine null
@@ -534,7 +534,7 @@ pmodels_load_event:
     debug: false
     events:
       after server start:
-      - if <script[pmodel_config].data_key[config].get[load_on_start].equals[true]>:
+      - if <script[pmodel_config].data_key[config].get[load_on_start].if_null[false].equals[true]>:
         - ~run pmodels_load_bbmodel
 
 pmodels_animator:
