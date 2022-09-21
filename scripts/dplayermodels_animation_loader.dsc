@@ -20,11 +20,10 @@ pmodels_load_bbmodel:
       - debug error "[Denizen Player Models] Could not find player model animations in data/pmodels/animations"
     - else:
       - foreach <[animation_files]> as:anim_file_raw:
-        - define check <[anim_file_raw].split[.]>
-        - if <[check].contains[bbmodel]>:
+        - if <[anim_file_raw].ends_with[.bbmodel]>:
             - define animation_file <[anim_file_raw].replace[.bbmodel].with[<empty>]>
         - else:
-            - debug error "[Denizen Player Models] There is an invalid file in data/pmodels/animations <[anim_file_raw]> is it a block bench file?"
+            - debug error "[Denizen Player Models] There is an invalid file in data/pmodels/animations/<[anim_file_raw]> is it a block bench file?"
             - foreach next
         # =============== Prep ===============
         - define pack_root data/pmodels/external_bones_res_pack
