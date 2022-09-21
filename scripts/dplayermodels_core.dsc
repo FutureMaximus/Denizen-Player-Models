@@ -49,11 +49,7 @@ pmodels_spawn_model:
     definitions: location|player|fake_to
     script:
     - define player <[player]||null>
-    - define fake_to <[fake_to]||null>
-    - if <[fake_to]> != null && !<[fake_to].is_player||true>:
-      - debug error "[Denizen Player Models] Fake to is not a player"
-      - stop
-    - if <[player].equals[null]>:
+    - if <[player]> == null:
       - debug error "[Denizen Player Models] Must specify a player or npc to spawn the player model."
       - stop
     #Determine skin
@@ -82,8 +78,8 @@ pmodels_spawn_model:
     #1.379 seems to be the best for the player model and the .relative tag centers the location
     - define center <[location].with_pitch[0].below[1.379].relative[0.32,0,0]>
     - define yaw_mod <[location].yaw.add[180].to_radians>
-    - if <[fake_to]> != null:
-      - fakespawn pmodel_part_stand <[location]> players:<[fake_to]> d:infinite save:root
+    - if <[fake_to].exists>:
+      - fakespawn pmodel_part_stand <[location]> d:infinite save:root
       - define root_entity <entry[root].faked_entity>
       - flag <[root_entity]> fake_to:<[fake_to]>
     - else:
@@ -111,7 +107,7 @@ pmodels_spawn_model:
         #When going too far from the player model textures can get messed up setting the tracking range to 256 fixes the issue
         - define loc <[center].add[<[offset].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
         - define spawn_stand pmodel_part_stand[armor_pose=[right_arm=<[pose]>];tracking_range=256]
-        - if <[fake_to]> != null:
+        - if <[fake_to].exists>:
           - fakespawn <[spawn_stand]> <[loc]> players:<[fake_to]> d:infinite save:spawned
           - define spawned <entry[spawned].faked_entity>
           - adjust <[fake_to]> fake_equipment:<[spawned]>|hand|<[part_item]>
@@ -286,7 +282,7 @@ pmodels_change_skin:
           - adjust <[i]> skull_skin:<[skull_skin]> save:item
           - define item <entry[item].result>
           - if <[fake_to]> != null:
-            - fakeequip <[part]> hand:<[item]> for:<[fake_to]> duration:infinite
+            - adjust <[fake_to]> fake_equipment:<[part]>|hand|<[item]>
           - else:
             - equip <[part]> hand:<[item]>
     - if <[root].flag[skin_type]> != <[skin_type]>:
@@ -514,9 +510,9 @@ pmodels_catmullrom_proc:
     # Based on https://en.wikipedia.org/wiki/Centripetal_Catmull%E2%80%93Rom_spline#Code_example_in_Unreal_C++
     # With safety checks added for impossible situations
     - define t0 0
-    - define t1 <proc[dcutscene_catmullrom_get_t].context[0|<[p0]>|<[p1]>]>
-    - define t2 <proc[dcutscene_catmullrom_get_t].context[<[t1]>|<[p1]>|<[p2]>]>
-    - define t3 <proc[dcutscene_catmullrom_get_t].context[<[t2]>|<[p2]>|<[p3]>]>
+    - define t1 <proc[pmodels_catmullrom_get_t].context[0|<[p0]>|<[p1]>]>
+    - define t2 <proc[pmodels_catmullrom_get_t].context[<[t1]>|<[p1]>|<[p2]>]>
+    - define t3 <proc[pmodels_catmullrom_get_t].context[<[t2]>|<[p2]>|<[p3]>]>
     # Divide-by-zero safety check
     - if <[t1].abs> < 0.001 || <[t2].sub[<[t1]>].abs> < 0.001 || <[t2].abs> < 0.001 || <[t3].sub[<[t1]>].abs> < 0.001:
         - determine <[p2].sub[<[p1]>].mul[<[t]>].add[<[p1]>]>
