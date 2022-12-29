@@ -23,15 +23,15 @@ pmodels_load_bbmodel:
         - if <[anim_file_raw].ends_with[.bbmodel]>:
             - define animation_file <[anim_file_raw].replace[.bbmodel].with[<empty>]>
         - else:
-            - debug error "[Denizen Player Models] There is an invalid file in data/pmodels/animations/<[anim_file_raw]> is it a block bench file?"
             - foreach next
         # =============== Prep ===============
-        - define pack_root data/pmodels/external_bones_res_pack
+        - define pack_root data/pmodels/denizen_player_models_pack
         - define models_root <[pack_root]>/assets/minecraft/models/item/pmodels/<[animation_file]>
         - define textures_root <[pack_root]>/assets/minecraft/textures/pmodels/<[animation_file]>
         - define item_validate <item[<script[pmodel_config].data_key[config].get[item]>]||null>
         - if <[item_validate]> == null:
           - debug error "[Denizen Player Models] Warning: The item specified in the config is an invalid item external bones will not generate"
+          - stop
         - define override_item_filepath <[pack_root]>/assets/minecraft/models/item/<script[pmodel_config].data_key[config].get[item]>.json
         - define file data/pmodels/animations/<[animation_file]>.bbmodel
         - define scale_factor <element[2.285].div[4]>
@@ -55,9 +55,10 @@ pmodels_load_bbmodel:
             - debug error "[Denizen Player Models] Can't load bbmodel for '<[animation_file]>' - file has no elements?"
             - stop
         # =============== Pack validation ===============
-        - if <[item_validate]> != null:
-            - if !<server.has_flag[data/pmodels/external_bones_res_pack/pack.mcmeta]>:
-                - filewrite path:data/pmodels/external_bones_res_pack/pack.mcmeta data:<map.with[pack].as[<map[pack_format=8;description=denizen_player_models_pack]>].to_json[native_types=true;indent=4].utf8_encode>
+        - if !<util.has_file[data/pmodels/external_bones_res_pack/pack.mcmeta]>:
+            - define pack_version 12
+            - ~filewrite path:data/pmodels/external_bones_res_pack/pack.mcmeta data:<map.with[pack].as[<map[pack_format=<[pack_version]>;description=denizen_player_models_pack]>].to_json[native_types=true;indent=4].utf8_encode>
+            - ~filewrite path:data/pmodels/external_bones_res_pack/pack.png data:<proc[pmodels_denizen_logo_proc].base64_to_binary>
         # =============== Elements loading ===============
         #Reason for loading elements before is to skip the player model texture
         - foreach <[data.elements]> as:element:
@@ -79,6 +80,7 @@ pmodels_load_bbmodel:
             - flag server pmodels_data.temp_<[animation_file]>.raw_elements.<[element.uuid]>:<[element]>
         # =============== Textures loading ===============
         - define tex_id 0
+        - define texture_paths <list>
         - foreach <[data.textures]||<list>> as:texture:
             - define texname <[texture.name]>
             - if <[texname].ends_with[.png]>:
@@ -98,6 +100,7 @@ pmodels_load_bbmodel:
               - ~filewrite path:<[texture_output_path]> data:<[raw_source].after[,].base64_to_binary>
             - define proper_path pmodels/<[animation_file]>/<[texname]>
             - define mc_texture_data.<[tex_id]> <[proper_path]>
+            - define texture_paths:->:<[proper_path]>
             - if <[texture.particle]||false>:
                 - define mc_texture_data.particle <[proper_path]>
             - define tex_id:++
@@ -117,8 +120,7 @@ pmodels_load_bbmodel:
             - define anim_count:++
             - define animation_list.<[animation.name]>.loop <[animation.loop]>
             - define animation_list.<[animation.name]>.length <[animation.length]>
-            - define animator_data <[animation.animators]||<list>>
-            # If the animation contains the outliners gather the data otherwise make an empty frame
+            - define animator_data <[animation.animators]||<map>>
             - if !<server.has_flag[pmodels_data.temp_<[animation_file]>.raw_outlines]>:
               - foreach next
             - foreach <server.flag[pmodels_data.temp_<[animation_file]>.raw_outlines]> key:o_uuid as:outline_data:
@@ -137,30 +139,60 @@ pmodels_load_bbmodel:
                         - define anim_map.data <[data_points.x].trim>,<[data_points.y].trim>,<[data_points.z].trim>
                     - define animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.<[channel]>:->:<[anim_map]>
                 #Time sort
-                - if <[animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.position]||null> != null:
+                - if <[animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.position].exists>:
                     - define animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.position <[animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.position].sort_by_value[get[time]]>
-                - if <[animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.rotation]||null> != null:
+                - if <[animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.rotation].exists>:
                     - define animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.rotation <[animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.rotation].sort_by_value[get[time]]>
-            #Set before and after data based on interpolation methods
+            #Set before and after data based on interpolation methods (barely optimizes it but oh well)
             - foreach <[animation_list.<[animation.name]>.animators]> key:a_uuid as:keyframe:
               - foreach position|rotation as:channel:
-                - define new_frame_list:!
                 - define frame_list <[keyframe.frames.<[channel]>]||null>
                 - if <[frame_list]> == null:
                   - foreach next
+                - define new_frame_list:!
                 - foreach <[frame_list]> as:frame:
                     - define time <[frame.time]>
                     - define new_frame <[frame]>
                     - define after <[frame_list].filter[get[time].is_more_than[<[time]>]].first||<[frame]>>
                     - define new_frame.after <[after]>
                     - if <[frame.interpolation]> == catmullrom:
-                        - define before_extra <[frame_list].filter[get[time].is_less_than[<[time]>]].last||<[frame]>>
+                        - define before_extra <[frame_list].filter[get[time].is_less_than[<[time]>]].last||null>
                         - define new_frame.before_extra <[before_extra]>
-                        - define after_extra <[frame_list].filter[get[time].is_more_than[<[after.time]>]].first||<[after]>>
+                        - define after_extra <[frame_list].filter[get[time].is_more_than[<[after.time]>]].first||null>
                         - define new_frame.after_extra <[after_extra]>
                     - define new_frame_list:->:<[new_frame]>
                 - define animation_list.<[animation.name]>.animators.<[a_uuid]>.frames.<[channel]>:<[new_frame_list]||<list>>
-            #- ~filewrite path:data/pmodels/debug/<[animation.name]>.json data:<[animation_list.<[animation.name]>.animators].to_json[native_types=true;indent=4].utf8_encode>
+        # =============== Atlas gen =============== (Sourced from DModels)
+        - define atlas_file <[pack_root]>/assets/minecraft/atlases/blocks.json
+        - waituntil rate:1t max:15s !<server.has_flag[pmodels_temp_atlas_handling]>
+        - if <server.has_flag[pmodels_temp_atlas_file]>:
+            - define atlas_data <util.parse_yaml[<server.flag[pmodels_temp_atlas_file].utf8_decode>]>
+        - else if <util.has_file[<[atlas_file]>]>:
+            - flag server pmodels_temp_atlas_handling expire:1h
+            - ~fileread path:<[atlas_file]> save:atlas_file_data
+            - flag server pmodels_temp_atlas_handling:!
+            - define atlas_data <util.parse_yaml[<entry[atlas_file_data].data.utf8_decode>]>
+        - else:
+            - definemap atlas_data sources:<list>
+        - define atlas_sources <[atlas_data.sources]>
+        - define player_model_check <[atlas_sources].filter[get[source].equals[player_animator/template]]>
+        - if <[player_model_check].is_empty>:
+          - definemap src type:directory source:player_animator/template prefix:player_animator/template/
+          - define atlas_data.sources:->:<[src]>
+          - define new_sources true
+        - define known_atlas_dirs <[atlas_sources].parse[get[source]].deduplicate>
+        - define atlas_dirs_to_track <[texture_paths].parse[before_last[/]].deduplicate>
+        - define atlas_dirs_to_add <[atlas_dirs_to_track].exclude[<[known_atlas_dirs]>]>
+        - if <[new_sources]||false> || <[atlas_dirs_to_add].any>:
+            - foreach <[atlas_dirs_to_add]> as:new_dir:
+                - definemap src:
+                    type: directory
+                    source: <[new_dir]>
+                    prefix: <[new_dir]>/
+                - define atlas_data.sources:->:<[src]>
+            - define new_atlas_json <[atlas_data].to_json[indent=4].utf8_encode>
+            - flag server pmodels_temp_atlas_file:<[new_atlas_json]> expire:1h
+            - ~filewrite path:<[atlas_file]> data:<[new_atlas_json]>
         # =============== Item model file generation ===============
         - if <util.has_file[<[override_item_filepath]>]>:
             - ~fileread path:<[override_item_filepath]> save:override_item
@@ -237,25 +269,19 @@ pmodels_load_bbmodel:
         - flag server pmodels_data.animations_player_model_template_norm:<[animation_list]>
         - flag server pmodels_data.animations_player_model_template_slim:<[animation_list]>
     # ============= Template Loading ===============
-    #TODO:
-    #- No longer need the json files and give ability to customize custom model data in pmodels config
-    - define norm_path data/pmodels/templates
-    - define slim_path data/pmodels/templates
-    - ~fileread path:<[norm_path]>/player_model_template_norm.json save:norm_read
-    - ~fileread path:<[slim_path]>/player_model_template_slim.json save:slim_read
-    - define norm_data <util.parse_yaml[<entry[norm_read].data.utf8_decode>]||null>
-    - define slim_data <util.parse_yaml[<entry[slim_read].data.utf8_decode>]||null>
-    - if <[norm_data]> == null || <[slim_data]> == null:
+    - define template_data <script[pmodel_config].data_key[templates]||null>
+    - define norm_data <[template_data.classic]||null>
+    - define slim_data <[template_data.slim]||null>
+    - if <[norm_data]> == null || <[slim_data]> == null || <[template_data]> == null:
       - debug error "Could not find template files in data/pmodels/templates"
       - stop
     - flag server pmodels_data.template_data.norm:<[norm_data]>
     - flag server pmodels_data.template_data.slim:<[slim_data]>
     - define norm_models <[norm_data.models]>
     - define slim_models <[slim_data.models]>
-    # Texture path for player model
-    - define load_order <list[player_root|head|hip|waist|chest|right_arm|right_forearm|left_arm|left_forearm|right_leg|right_foreleg|left_leg|left_foreleg]>
-    - foreach <[load_order]> as:tex_name:
-      # Norm
+    - define tex_load_order <list[player_root|head|hip|waist|chest|right_arm|right_forearm|left_arm|left_forearm|right_leg|right_foreleg|left_leg|left_foreleg]>
+    - foreach <[tex_load_order]> as:tex_name:
+      # Normal
       - foreach <[norm_models]> key:uuid as:model:
         - if <[model.name]> == <[tex_name]>:
           - define norm_models.<[uuid]>.type default
@@ -265,15 +291,12 @@ pmodels_load_bbmodel:
         - if <[model.name]> == <[tex_name]>:
           - define slim_models.<[uuid]>.type default
           - flag server pmodels_data.model_player_model_template_slim.<[uuid]>:<[slim_models.<[uuid]>]>
-    - announce to_console "[Denizen Player Models] <[anim_count]||0> Animations have been loaded."
+    - announce to_console "[Denizen Player Models] Loaded <[anim_count]||0> animations."
     - define extern_count <[external_count]||null>
     - if <[extern_count]> != null:
       - announce to_console "[Denizen Player Models] <[external_count]> External bones have been loaded."
-    ##Debug
-    #- ~filewrite path:data/pmodels/debug_data/player_models_norm.json data:<server.flag[pmodels_data.model_player_model_template_norm].to_json[native_types=true;indent=4].utf8_encode>
-    #- ~filewrite path:data/pmodels/debug_data/player_models_slim.json data:<server.flag[pmodels_data.model_player_model_template_slim].to_json[native_types=true;indent=4].utf8_encode>
+    - determine <[anim_count]>
 
-# Bones that cannot be generated in the resource pack
 pmodels_excluded_bones:
     type: data
     bones:
@@ -342,3 +365,9 @@ pmodels_loader_readoutline:
     - flag server pmodels_data.temp_<[animation_file]>.raw_outlines.<[new_outline.uuid]>:<[new_outline]>
     - foreach <[raw_children]> as:child:
         - run pmodels_loader_addchild def.animation_file:<[animation_file]> def.parent:<[outline]> def.child:<[child]>
+
+pmodels_denizen_logo_proc:
+    type: procedure
+    debug: false
+    script:
+    - determine iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAACXBIWXMAAAsSAAALEgHS3X78AAADAFBMVEX///8BAQL87pX875n+///97pP68Jn87pYAAAD77pYAAAH77ZYCAwL6+vv87Zb/+p79/v377Jj764/77ZUBAQX87Zj//v/+7ZhdXV2lnYP58JX8/P377Zj+7Jj97Zj77Zf87ZX77pUAAAH47pv/7Zr97Zf87Zf67JT67pgpKSn775P/8pwFAQX+/vvp6en/+Jv///z77pEaGhiJhWH975f575sGBQj375z///778JH67pIDAgz97Z0FBgTl5+IBAQf+//8vKxP765T8/Pz58JD775T865f77ZT87ZptbXP675X5+/b78JT//qD87Z3f1X+Ki4r37pzs5Yz/8535+fn8/fgpJyEsJyHe1X8pJyL97Zb97ZP97pESERHLysz39/cKCQdEREg2Oz387pNwaljf2H//8KD/8J/+9JgNDA0kHxb/95/565H/96OSkpL97Jj67pv/8pT865+zs7Olnnvs5Y/37JD97pj///n4+vo/Oyr/9Kn46pS7vL02OzhVTC3+8JPo6ej+7ZVVVlj/+pP97o00MzT78Zf/+ZcYFxf8+/z/9pFLTVD+/////Jnk5uFSSjP36ZZWTzGWlpYlJSX57pj+7pf67prc3Nyurq6enZ/475ZjXTyYkFvl5eXQ0ND88Jz67YlUUTw1Lh/t6Kb77phbW1r9/P5ZVz7y8/JeXmG3tXr78Iumnnb86aJmZWv18/YNCxr464yYkWaMiGb/+aVUTza4soX//7HHx8fo35Lu45eknG2lnYLy7Y/T1NFCQ0Hp4Kjw8O7w5pttZ0y/wL8eHx/56Zz37ore1ZLy6pUVEgv+//20q3epqqv+9KF3dnXWzpD28KxGPS2Fglajpqj8//0/PR/m359YVEc7OT0+O0P16IsuLi716ZP/8osVEQjq6Jnx651ycnKLglozLxNFQ0GtpnFtbXXv54z885vIvX1KRjJ9foLa0p1/dlLW1NSVkG1jX0SIiJEZHCb6+p/18pD2+PPNyYj8+omgoWvCu3xpZVHJuph2cFbIxZqlkjgZAAAGcUlEQVRYw7WXB1wTVxzHX07LvcviQoYtDebuQyXINLVGJMYoiSGFD1ZtqBZlaByACIoWKWALdTI+otS6cO+9997bT927e++953sZJOECh59P+/1n8Hm5+/G9d3fvvQPdEQPCw7t1C/dW9wHeGoB+D28FoFZHRkYqZUr0chYmOdEHHXohEt/AyDiADh2KisIQzg/8XdQh7KlArFFGqJVhHMC8eRkZGSJflGtsPf3o52TSpAwpI+IAZlApKSmNPoSGWpzOPlgslhJdyNDXOikbOYCgdpoIK8uycspJoyZJmxs/BhHvz8za8do5FRq12mYTsZQHlgJBQWplJ9IDpQuJvrtrd9fm7P5uy76vr6dNnRbiYEVyRuoFG1iLCIJgKBLXzuWrVwrznuaQmZmZ/+XNa29Ga0sshNS1LSoGGbRTK5UMxbgMtM+fuCdUTKmvr+/lpr4X/rP+2JlbXw3bkbd+3/UxOrQthbYlULEkNlAWUQSFG0jtM6vXG3bAjXQCDbwkdElIwN/bF/T/Me/7C7kFWhErJeUEKkbuMiAoFGZRTitfvR7qFXBtaiwHM02D9uDkDzsubfop1BpWRLh7zWvAJsreObFSbBSL4eMSusmgvQeaps32dJBVl7P75xVbh+hEzQ2IyKSpW6BeLPQPADSqBOcniliXDrI3wpuzzqsjiOYGDso6a6JJAaF/AO2DiqbTUyXbt+X9/tucfslyj4HGKkU2ZN8oa/BEtHfzADMqBMAtCaVdaHssXWf8tbYggpKSqJyH4DLQhQQfaR7QFGS2O2Ni0VuiWnZ278XNcrXawboNOuKDcThCgp/gBNgPLJyAyNrgzVLZwS14JbjAJnOwJL6QZMqO+MIIFEDT2cNgjl6fUz1sURwwuxNqbm+YPrtcq5YShLMTI1s2oEH2cdwEoQBOzwJ2V+vldLAo54uxFYT7LLRmAJABujLEYqMevnUMuFpvo6uhesmeCkIjJfgNPoYGAVaARrjWHdC7C739/uJ4GZNMtcHgONoTug4i74CnG2rAlDtHbUwUxdsHl/EhKFwJYlgIJJ6AbR8NHG1lRXwG7Ut/GQb1BqPApdDfY2AGz/ZBASINbx+Upj640zVfKA4UMMqm1vD2QYJ9eMP+P/KFCp8AlaoLDnhplFUk4u0DVeorr8bv2ZJjEvgFpINPcUAbzgIOSKu4WwbFAiE3QE61ySDtYfmfUCF0GtB+AWwbDXaWj4AKiAwKWzOQthTQkFaAAlAnCODrvgEDR1n7tsVgeEPanLEjoEHBCRgtjWJxQFCkNQIN6dKoqJYCKjwBhf4Boig0ujvHxI5olpNGOXgDmgximwxcMxM24D8EmLnMG7Ctz8CejOsQ+AxeDX4YjQOMcAqQeE4jXbfqM5sV3Y18Br1fvt+wf8b+v4UGMZy7zHUzqlSlpVWdb5TMK05Zw2uQYH9Q9s++v+6hxs5ngKtZpTKDyfrTuTZbiprXIBaPBzEx+urpV5cCs7t1nQRchbtmnctItPEZgFh71oTJiKy4J2mJu+2yHXybmbNp5tYhiTaCxwCYazwz1Dq6aa5I37AW3ujeY+tQnY3gM0ARZnMNevvMdXbQ3xiza08BieczPgMu6JeFecL8a7loOhWRJL+BP5Jsmi6sNsR887nOvUp6JAO0xABVH0C9YNWpymTfFQrHIFsiMdNmz8yO1yZmswSdBfrkwvvQqL/0SW0J2ZrBRgACGWQvWDRdDMUm+OHYpMaU1gymxMVVxflRtXRBVmHd3ByD3mgUrny/wIoDmht4xgN023VuztyzmXhyEZgMBrj4vdoV6tYMWgCv39AkrV98MeV8j3EpDiqQwRF3gEAs4IBbFaZ3l0Q/ZnVE9otycAxYS1I8WmRx9xQInZHonwvEZZtyVyRFUJSGJTgGbGjSzIkGfYw/CoxJIYAKkzCnbMnRmRY5Wu7jMZRrMN86dYvAJFBwMJmQgzh/9uFD0ZtLxs0PZUnKW14DRn1u6pX8QS++4FuDnKwq23v68MG0+MohxcXFlMVB+uBjwBZXnrowcvBzvjUSM/jgobdnjFlesjMxUq2bNtQqbcGAkcnb5UYHYvz4yqEhMg0pp1iHjimSBjQg5GQymaSt0AYAP52RrPMpg3KNAgEMCIZkSLlITvqDFsR4X1evU86nFD8BrwEpxyWV+8WjXUmq9fI3wPWI/BcGGmUEQzCs26B5gPz/NvgXiEdgKnfBvj4AAAAASUVORK5CYII=
