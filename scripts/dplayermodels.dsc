@@ -12,7 +12,7 @@
 # @Special thanks to mcmonkey for creating dmodels and making this possible for everyone!
 # @date 2022/06/03
 # @updated 2022/12/28
-# @denizen-build REL-1776
+# @denizen-build 1.2.6-b6609-DEV
 # @script-version 1.6 BETA
 # @Github https://github.com/FutureMaximus/Denizen-Player-Models
 
@@ -20,7 +20,6 @@
 
 # - Removed need for template files
 # - Implemented atlas support for 1.19.3
-# - Reworked emote system
 
 #=========================
 
@@ -49,12 +48,14 @@
 
 ##Notice: If you have the mccosmetics core shader file and player_animator folder you can skip this part
 # Put the core shader files provided in your resource pack minecraft shader folder
-# "minecraft/shaders/core/rendertype_entity_translucent.vsh" ,"minecraft/shaders/core/rendertype_entity_translucent.fsh"
+# "minecraft/shaders/core/rendertype_entity_translucent.vsh" ,"assets/minecraft/shaders/core/rendertype_entity_translucent.fsh"
 # and "minecraft/shaders/core/rendertype_entity_translucent.json"
 
-# Put the player_animator folder inside your resource pack assets "resource_pack/assets/player_animator"
+# Put the player_animator folder inside your minecraft items folder "assets/minecraft/models/item/player_animator"
 
-# Put the player_head.json model item file in your minecraft resource pack folder "minecraft/models/item/player_head.json"
+# Put the player_head.json model item file in your minecraft resource pack folder "assets/minecraft/models/item/player_head.json"
+
+# Afterwards do /pmodels reload if you have animations in "Denizen/data/pmodels/animations".
 
 #=================================================================================
 
@@ -67,7 +68,7 @@
 ##How to use:
 # Put your animated file with external bones in "Denizen/data/pmodels/animations"
 # then run the command /pmodel reload
-# Take the contents of "Denizen/data/pmodels/external_bones_res_pack" and put
+# Take the contents of "Denizen/data/pmodels/denizen_player_models_pack" and put
 # them in your resource pack assets.
 # Zip your resource pack and enjoy.
 
@@ -323,4 +324,4 @@ pmodel_base_command:
     - define animation_count <entry[result].created_queue.determination.first>
     - narrate "[Denizen Player Models] Loaded <[animation_count]> animations."
 
-#======================================
+#=======================================
