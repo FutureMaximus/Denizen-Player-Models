@@ -1,0 +1,7 @@
+{"sources": [
+    {
+        "type": "directory",
+        "prefix": "player_animator/template/",
+        "source": "player_animator/template"
+    }
+]}
