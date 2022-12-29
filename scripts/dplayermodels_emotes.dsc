@@ -2,27 +2,9 @@
 #This is purely optional but this works quite well with Denizen Player Models for the use of emotes
 #if you don't want this script it is safe to remove it.
 
-##Emote tasks ################################
-pmodel_emote_list:
-  type: procedure
-  definitions: player
-  debug: false
-  script:
-  - define emotes <script[pmodel_emote_config].data_key[emotes].if_null[n]>
-  - if <[emotes]> != n:
-    - define e_list <list>
-    - foreach <[emotes]> key:e_name as:emote:
-      - define perm <[emote.perm].if_null[n]>
-      - if <[perm].equals[n]>:
-        - foreach next
-      - if <[player].has_permission[<[perm]>]> || <[player].is_op>:
-        - define e_list:->:<[e_name]>
-    - if <[e_list].is_empty>:
-      - define e_List <empty>
-    - determine <[e_list]>
-  - else:
-    - determine <empty>
-
+#=== Begin emote ==============
+# TODO:
+#- Rework this
 pmodel_emote_task:
   type: task
   debug: false
@@ -70,6 +52,8 @@ pmodel_emote_task:
       - spawn armor_stand[custom_name_visible=true;custom_name=<[player].display_name>;visible=false;gravity=false;marker=true] <[vehicle].location.above[1]> save:display
       - flag <[player]> emote_display:<entry[display].spawned_entity>
   - run pmodels_animate def.root_entity:<[root]> def.animation:<[emote]>
+
+#============================
 
 #should the player model be spawned already in the emote
 pmodel_emote_task_passive:
@@ -269,7 +253,7 @@ pmodel_emote_vehicle_task:
       - if <player.has_flag[emote_display]>:
         - teleport <player.flag[emote_display]> <[vehicle].location.above[1.8]>
       #camera collide detection
-      - define max_r <[script_e.<[emote]>.cam_range].if_null[<[script_c.cam_max_range]>]>
+      - define max_r <[script_e.<[emote]>.camera_max_range].if_null[<[script_c.camera_max_range]>]>
       - define rot_loc <[vehicle].location.with_yaw[<player.location.yaw>].with_pitch[<player.location.pitch>].relative[<location[0,0,-<[max_r]>].rotate_around_z[<player.location.yaw.to_radians>]>].relative[<[cam_offset]>]>
       - define ray_ent <player.flag[pmodel_ray_ent]>
       - teleport <[ray_ent]> <[vehicle].location.above[1]>
@@ -291,6 +275,8 @@ pmodel_emote_vehicle_task:
       - teleport <[mount]> <[rot_loc]>
       #the player model
       - teleport <[emote_ent]> <[vehicle].location.with_pitch[0]>
+
+#==== Collision procedures ====
 
 pmodel_up_block:
   type: procedure
@@ -318,15 +304,15 @@ pmodel_collision_detect:
 pmodel_falling:
     type: procedure
     debug: false
-    definitions: loc
+    definitions: locations
     script:
-    - foreach <[loc]>:
-      - if !<[value].material.is_solid>:
-        - determine fall
-        - stop
-      - else:
+    - foreach <[locations]> as:l:
+      - if <[l].material.is_solid>:
         - determine s
-############################
+      - else:
+        - determine fall
+
+#============================
 
 ##Entities ######################
 
