@@ -1,21 +1,19 @@
-#Core Tasks of Denizen Player Models
 #This is required to spawn and animate the player models.
-##Core tasks #########################
+#====================================== Core ======================================
+
 #Determine if player has classic skin or slim skin this also works on npcs
 pmodels_skin_type:
     type: procedure
     debug: false
     definitions: player
     script:
-    - define npc <npc[<[player]>]||null>
-    - define player <player[<[player]>]||null>
-    - if <[player]> != null:
+    - if <[player].is_npc||false>:
+      - determine <util.parse_yaml[<npc[<[player]>].skin_blob.before[;].base64_to_binary.utf8_decode>].deep_get[textures.skin.metadata.model]||classic>
+    - else if <[player].is_player||false>:
       - if <[player].is_online>:
-        - determine <util.parse_yaml[<player[<[player]>].skin_blob.before[;].base64_to_binary.utf8_decode>].deep_get[textures.skin.metadata.model]||classic>
+        - determine <util.parse_yaml[<[player].skin_blob.before[;].base64_to_binary.utf8_decode>].deep_get[textures.skin.metadata.model]||classic>
       - else:
         - determine null
-    - else if <[npc]> != null:
-      - determine <util.parse_yaml[<npc[<[npc]>].skin_blob.before[;].base64_to_binary.utf8_decode>].deep_get[textures.skin.metadata.model]||classic>
     - else:
       - determine null
 
@@ -48,20 +46,18 @@ pmodels_spawn_model:
     debug: false
     definitions: location|player|fake_to
     script:
-    - define player <[player]||null>
-    - if <[player]> == null:
+    - if !<[player].exists>:
       - debug error "[Denizen Player Models] Must specify a player or npc to spawn the player model."
       - stop
     #Determine skin
     - if <[player].is_npc||false>:
-      - define skin_type <proc[pmodels_skin_type].context[<[player]>]>
+      - define skin_type <[player].proc[pmodels_skin_type]>
     - else if <[player].is_player||false>:
-      - define skin_type <[player].flag[pmodels_skin_type]||null>
+      - define skin_type <[player].flag[pmodels_skin_type]||<[player].proc[pmodels_skin_type]>>
       - if <[skin_type]> == null:
-        - define skin_type <proc[pmodels_skin_type].context[<[player]>]>
         - flag <[player]> pmodels_skin_type:<[skin_type]>
     - else:
-      - debug error "[Denizen Player Models] Could not determine a player or npc."
+      - debug error "[Denizen Player Models] Could not determine a valid player or npc for the skin type."
       - stop
     #Classic or slim model
     - choose <[skin_type]>:
@@ -70,7 +66,7 @@ pmodels_spawn_model:
       - case slim:
         - define model_name player_model_template_slim
       - default:
-        - debug error "[Denizen Player Models] Something went wrong in pmodels_spawn_model invalid skin type."
+        - debug error "[Denizen Player Models] <red>Something went wrong in pmodels_spawn_model invalid skin type."
         - stop
     - if !<server.has_flag[pmodels_data.model_<[model_name]>]>:
         - debug error "[Denizen Player Models] <red>Cannot spawn model <[model_name]>, model not loaded"
@@ -86,9 +82,7 @@ pmodels_spawn_model:
       - spawn pmodel_part_stand <[location]> save:root
       - define root_entity <entry[root].spawned_entity>
     - flag <[root_entity]> pmodel_model_id:<[model_name]>
-    #Skin type of player model
     - flag <[root_entity]> skin_type:<[skin_type]>
-    #Skull skin
     - define skull_skin <[player].skull_skin>
     - foreach <server.flag[pmodels_data.model_<[model_name]>]> key:id as:part:
         - if !<[part.item].exists>:
@@ -99,9 +93,8 @@ pmodels_spawn_model:
             - foreach next
         #15.98 has been the best number for the player model based on multiple tests
         - define offset <location[<[part.origin]>].div[15.98]>
-        - define rots <[part.rotation].split[,].parse[to_radians]>
+        - define rots <[part.rotation].split[,].parse[to_radians]||<list[0.0|0.0|0.0]>>
         - define pose <[rots].get[1].mul[-1]>,<[rots].get[2].mul[-1]>,<[rots].get[3]>
-        #Item
         - adjust <item[<[part.item]>]> skull_skin:<[skull_skin]> save:item
         - define part_item <entry[item].result>
         #When going too far from the player model textures can get messed up setting the tracking range to 256 fixes the issue
@@ -125,7 +118,7 @@ pmodels_spawn_model:
         - flag <[spawned]> pmodel_def_type:default
         - flag <[root_entity]> pmodel_parts:->:<[spawned]>
         - flag <[root_entity]> pmodel_anim_part.<[id]>:->:<[spawned]>
-    - if <[external_parts]||null> != null:
+    - if <[external_parts].exists>:
       - flag <[root_entity]> external_parts:<[external_parts]>
     - determine <[root_entity]>
 
@@ -155,14 +148,12 @@ pmodels_animate:
       - define yaw_mod <[root_entity].location.yaw.add[180].to_radians>
       - foreach <[root_entity].flag[external_parts]> key:id as:part:
         #Look for external bones in the animation
-        - define anim_part_look <[animation_data.animators.<[id]>]||null>
-        #if the animation uses the external bone
-        - if <[anim_part_look]> != null:
+        - if <[animation_data.animators.<[id]>].exists>:
           - if !<[part.item].exists>:
               - foreach next
           #15.98 div offset
           - define offset <location[<[part.origin]>].div[15.98]>
-          - define rots <[part.rotation].split[,].parse[to_radians]>
+          - define rots <[part.rotation].split[,].parse[to_radians]||<list[0,0,0]>>
           - define pose <[rots].get[1].mul[-1]>,<[rots].get[2].mul[-1]>,<[rots].get[3]>
           - define loc <[center].add[<[offset].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
           - define spawn_stand pmodel_part_stand_small[equipment=[helmet=<[part.item]>];armor_pose=[head=<[pose]>];tracking_range=256]
@@ -232,62 +223,53 @@ pmodels_reset_model_position:
 pmodels_change_skin:
     type: task
     debug: false
-    definitions: player|root
+    definitions: player|root_entity
     script:
-    - define npc <npc[<[player]>]||null>
-    - define player <player[<[player]>]||null>
-    - if <[npc]> != null:
-      - define skull_skin <[npc].skull_skin>
-      - define skin_type <[npc].proc[pmodels_skin_type]>
-    - else if <[player]> != null:
+    - if <[player].is_npc||false>:
       - define skull_skin <[player].skull_skin>
-      - define skin_type <[player].flag[pmodels_skin_type]>
+      - define skin_type <[player].proc[pmodels_skin_type]>
+    - else if <[player].is_player||false>:
+      - define skull_skin <[player].skull_skin>
+      - define skin_type <[player].flag[pmodels_skin_type]||<[player].proc[pmodels_skin_type]>>
     - else:
       - debug error "[Denizen Player Models] Must specify a valid player or npc to change the player model skin."
       - stop
-    - define fake_to <[root].flag[fake_to]||null>
-    - define parts <[root].flag[pmodel_parts]||<list>>
+    - define fake_to <[root_entity].flag[fake_to]||null>
+    - define parts <[root_entity].flag[pmodel_parts]||<list>>
     - define load_order <list[player_root|head|hip|waist|chest|right_arm|right_forearm|left_arm|left_forearm|right_leg|right_foreleg|left_leg|left_foreleg]>
+    - define norm_models <server.flag[pmodels_data.template_data.norm.models]||null>
+    - define slim_models <server.flag[pmodels_data.template_data.slim.models]||null>
+    - if <[norm_models]> == null || <[slim_models]> == null:
+      - debug error "[Denizen Player Models] Could not find template file in pmodels_change_skin"
+      - stop
     - foreach <[load_order]> as:bone:
       - foreach <[parts]> as:part:
         - if <[part].flag[pmodel_def_name]> == <[bone]>:
-          - define i <[part].item_in_hand>
+          - define hand_item <[part].item_in_hand>
           #If the root model skin type does not equal the new model skin type change it
-          - if <[root].flag[skin_type]> != <[skin_type]>:
+          - if <[root_entity].flag[skin_type]> != <[skin_type]>:
             - choose <[skin_type]>:
               - case classic:
-                - define norm_data <server.flag[pmodels_data.template_data.norm]>
-                - if <[norm_data]> == null:
-                  - debug error "[Denizen Player Models] Could not find template file data in pmodels_change_skin"
-                  - stop
-                - define models <[norm_data.models]>
-                - foreach <[models]> as:model:
-                  - define name <[model.name]>
-                  - if <[name]> == <[bone]>:
-                    - define i <item[<[model.item]>]>
+                - foreach <[norm_models]> as:model:
+                  - if <[model.name]> == <[bone]>:
+                    - define hand_item <item[<[model.item]>]>
                     - define offset <location[<[model.origin]>].div[15.98]>
                     - flag <[part]> pmodel_def_offset:<[offset]>
               - case slim:
-                - define slim_data <server.flag[pmodels_data.template_data.slim]>
-                - if <[slim_data]> == null:
-                  - debug error "[Denizen Player Models] Could not find template file in pmodels_change_skin"
-                  - stop
-                - define models <[slim_data.models]>
-                - foreach <[models]> as:model:
-                  - define name <[model.name]>
-                  - if <[name]> == <[bone]>:
-                    - define i <item[<[model.item]>]>
+                - foreach <[slim_models]> as:model:
+                  - if <[model.name]> == <[bone]>:
+                    - define hand_item <item[<[model.item]>]>
                     - define offset <location[<[model.origin]>].div[15.98]>
                     - flag <[part]> pmodel_def_offset:<[offset]>
-          - adjust <[i]> skull_skin:<[skull_skin]> save:item
+          - adjust <[hand_item]> skull_skin:<[skull_skin]> save:item
           - define item <entry[item].result>
           - if <[fake_to]> != null:
             - adjust <[fake_to]> fake_equipment:<[part]>|hand|<[item]>
           - else:
             - equip <[part]> hand:<[item]>
-    - if <[root].flag[skin_type]> != <[skin_type]>:
-      - flag <[root]> skin_type:<[skin_type]>
-      - run pmodels_reset_model_position def.root_entity:<[root]>
+    - if <[root_entity].flag[skin_type]> != <[skin_type]>:
+      - flag <[root_entity]> skin_type:<[skin_type]>
+      - run pmodels_reset_model_position def.root_entity:<[root_entity]>
 
 pmodels_move_to_frame:
     type: task
@@ -322,9 +304,9 @@ pmodels_move_to_frame:
         - define data <[relevant_frames].proc[pmodels_interpolation_data].context[<[timespot]>|<[animation_data.loop]>]>
         - define framedata.<[channel]> <[data]>
       - define this_part <[model_data.<[part_id]>]>
-      - define this_rots <[this_part.rotation].split[,].parse[to_radians]>
+      - define this_rots <[this_part.rotation].split[,].parse[to_radians]||<list[0|0|0]>>
       - define pose <[this_rots].get[1].mul[-1]>,<[this_rots].get[2].mul[-1]>,<[this_rots].get[3]>
-      - define parent_id <[this_part.parent]>
+      - define parent_id <[this_part.parent]||<[part_id]>>
       - define parent_pos <location[<[parentage.<[parent_id]>.position]||0,0,0>]>
       - define parent_rot <location[<[parentage.<[parent_id]>.rotation]||0,0,0>]>
       - define parent_offset <location[<[parentage.<[parent_id]>.offset]||0,0,0>]>
@@ -337,21 +319,17 @@ pmodels_move_to_frame:
       - define parentage.<[part_id]>.rotation:<[new_rot]>
       - define parentage.<[part_id]>.offset:<[rot_offset].add[<[parent_offset]>]>
       - foreach <[root_entity].flag[pmodel_anim_part.<[part_id]>]||<list>> as:ent:
-        - define def_type <[ent].flag[pmodel_def_type]>
-        - choose <[def_type]>:
+        - define radian_rot <[new_rot].as[location].xyz.split[,]>
+        - define pose <[radian_rot].get[1]>,<[radian_rot].get[2]>,<[radian_rot].get[3]>
+        - adjust <[ent]> reset_client_location
+        - choose <[ent].flag[pmodel_def_type]>:
           - case default:
             - define center <[root_entity].location.with_pitch[0].below[1.379].relative[0.32,0,0]>
             - teleport <[ent]> <[center].add[<[new_pos].div[15.98].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
+            - adjust <[ent]> armor_pose:[right_arm=<[pose]>]
           - case external:
             - define center <[root_entity].location.with_pitch[0].below[0.7]>
             - teleport <[ent]> <[center].add[<[new_pos].div[15.98].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
-        - adjust <[ent]> reset_client_location
-        - define radian_rot <[new_rot].xyz.split[,]>
-        - define pose <[radian_rot].get[1]>,<[radian_rot].get[2]>,<[radian_rot].get[3]>
-        - choose <[def_type]>:
-          - case default:
-            - adjust <[ent]> armor_pose:[right_arm=<[pose]>]
-          - case external:
             - adjust <[ent]> armor_pose:[head=<[pose]>]
         - adjust <[ent]> send_update_packets
 
@@ -361,30 +339,29 @@ pmodels_interpolation_data:
     definitions: relevant_frames|timespot|loop
     script:
     - define before_frame <[relevant_frames].filter[get[time].is_less_than_or_equal_to[<[timespot]>]].last||null>
-    - define after_frame <[before_frame.after]||<[before_frame]>>
     - if <[before_frame]> == null:
-      - define data 0,0,0
+      - determine 0,0,0
+    - define after_frame <[before_frame.after]||<[before_frame]>>
+    - define b_time <[before_frame.time]>
+    - define time_range <[after_frame.time].sub[<[b_time]>]>
+    - if <[time_range]> == 0:
+      - define time_percent 0
     - else:
-      - define b_time <[before_frame.time]>
-      - define time_range <[after_frame.time].sub[<[b_time]>]>
-      - if <[time_range]> == 0:
-        - define time_percent 0
-      - else:
-        - define time_percent <[timespot].sub[<[b_time]>].div[<[time_range]>]>
-      - choose <[before_frame.interpolation]>:
-          - case catmullrom:
-            - define before_extra <[before_frame.before_extra]||null>
-            - if <[before_extra]> == null:
-                - define before_extra <[loop].equals[loop].if_true[<[relevant_frames].last>].if_false[<[before_frame]>]>
-            - define after_extra <[before_frame.after_extra]||null>
-            - if <[after_extra]> == null:
-                - define after_extra <[loop].equals[loop].if_true[<[relevant_frames].first>].if_false[<[after_frame]>]>
-            - define data <proc[pmodels_catmullrom_proc].context[<[before_extra.data].as[location]>|<[before_frame.data].as[location]>|<[after_frame.data].as[location]>|<[after_extra.data].as[location]>|<[time_percent]>]>
-          - case linear:
-            - define data <[after_frame.data].as[location].sub[<[before_frame.data]>].mul[<[time_percent]>].add[<[before_frame.data]>].xyz>
-          - case step:
-            - define data <[before_frame.data]>
-    - determine <[data]>
+      - define time_percent <[timespot].sub[<[b_time]>].div[<[time_range]>]>
+    - choose <[before_frame.interpolation]>:
+        - case catmullrom:
+          - define before_extra <[relevant_frames].filter[get[time].is_less_than[<[before_frame.time]>]].last||null>
+          - if <[before_extra]> == null:
+              - define before_extra <[loop].equals[loop].if_true[<[relevant_frames].last>].if_false[<[before_frame]>]>
+          - define after_extra <[relevant_frames].filter[get[time].is_more_than[<[after_frame.time]>]].first||null>
+          - if <[after_extra]> == null:
+              - define after_extra <[loop].equals[loop].if_true[<[relevant_frames].first>].if_false[<[after_frame]>]>
+          - define data <proc[pmodels_catmullrom_proc].context[<[before_extra.data].as[location]>|<[before_frame.data].as[location]>|<[after_frame.data].as[location]>|<[after_extra.data].as[location]>|<[time_percent]>]>
+        - case linear:
+          - define data <[after_frame.data].as[location].sub[<[before_frame.data]>].mul[<[time_percent]>].add[<[before_frame.data]>].xyz>
+        - case step:
+          - define data <[before_frame.data]>
+    - determine <[data]||0,0,0>
 
 pmodels_rot_proc:
     type: procedure
@@ -433,9 +410,7 @@ pmodels_catmullrom_proc:
     # FVector C  = ( t2-t )/( t2-t1 )*B1 + ( t-t1 )/( t2-t1 )*B2;
     - determine <[b1].mul[<[t2].sub[<[t]>].div[<[t2].sub[<[t1]>]>]>].add[<[b2].mul[<[t].sub[<[t1]>].div[<[t2].sub[<[t1]>]>]>]>]>
 
-#############################
-
-##Events ########################
+#===== Events ===============================================================
 pmodels_load_event:
     type: world
     debug: false
@@ -462,4 +437,6 @@ pmodels_animator:
         - wait 1t
         - define skin_type <player.proc[pmodels_skin_type]>
         - flag <player> pmodels_skin_type:<[skin_type]>
-####################################
+#================================================================================
+
+#================================================================================================
