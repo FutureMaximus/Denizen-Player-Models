@@ -55,7 +55,7 @@ pmodels_load_bbmodel:
             - debug error "[Denizen Player Models] Can't load bbmodel for '<[animation_file]>' - file has no elements?"
             - stop
         # =============== Pack validation ===============
-        - if !<util.has_file[data/pmodels/external_bones_res_pack/pack.mcmeta]>:
+        - if !<util.has_file[<[pack_root]>/pack.mcmeta]>:
             - define pack_version 12
             - ~filewrite path:data/pmodels/external_bones_res_pack/pack.mcmeta data:<map.with[pack].as[<map[pack_format=<[pack_version]>;description=denizen_player_models_pack]>].to_json[native_types=true;indent=4].utf8_encode>
             - ~filewrite path:data/pmodels/external_bones_res_pack/pack.png data:<proc[pmodels_denizen_logo_proc].base64_to_binary>
