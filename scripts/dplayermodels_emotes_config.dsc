@@ -1,63 +1,86 @@
-#Emotes for Denizen Player Models
-#This is purely optional but this works quite well with Denizen Player Models for the use of emotes
-#if you don't want this script it is safe to remove it.
+# Emotes configuration for Denizen Player Models
+# This is safe to remove
 
-#config
+#== API Usage ====================
+## Begin an emote
+# - run pmodel_emote_task def.player:<player[bob]> def.emote:wave
+## Begin an emote without respawning the player model
+# - run pmodel_emote_task_passive def.player:<player[bob]> def.emote:wave
+## Stop an emote from playing
+# - run pmodel_emote_task_stop def.player:<player[FutureMaximus]>
+## Flags:
+## Prevents the player from moving the player model
+# - flag <player> pmodel_no_move
+#==================================
+
+#=== Emotes Config ================
+
 pmodel_emote_config:
   type: data
   config:
-    #whether it shows the player's display name when doing an emote
+    # Determine if the player's display name is shown during the emote
     show_display_name: false
-    #prefix for emote command
-    prefix: "[Denizen Player Models]"
-    #prefix color
-    prefix_color: "white"
-    #message color
-    message_color: "white"
-    #did not specify an emote to use
-    no_emote: " Specify an emote"
-    #emote does not exist message
-    no_exist: " That emote does not exist!"
-    #no permission for that emote
-    no_perm: " You do not seem to have access to that emote!"
-    #max_range: 8 "Maximum range the third person camera can go."
-    cam_max_range: 5
-  #emotes configuration
-  #INFO:
-  # speed: 0.2 "Speed allows you to move during the emote at a set speed setting this to 0 prevents that."
-  # turn_rate: 6.0 "Determine how fast you will turn while moving in the emote higher values result in a faster turn rate setting this to 0 prevents turning."
-  # perm: emote.wave "Perm allows you to set a permission for this emote to disable this set it to 'none'."
-  # cam_range: 5 "How far the camera can go from the player" Default: cam_max_range in config
-  # cam_offset: -1,0,0 "The camera offset" Default: 0,0,0
-  #here you can set the emotes for players and permissions required for them
+    # The command prefix
+    prefix: &b[Denizen Player Models]
+    # The message if no emote is specified
+    no_emote_message: Specify an emote
+    # The message if the emote does not exist
+    emote_nonexistent_message: That emote does not exist!
+    # The message if the player does not have permission for the emote
+    no_permission_message:  You do not seem to have access to that emote!
+    # Maximum range the third person camera can go
+    camera_max_range: 5
+    # Ratelimit the player can use the emote command
+    command_ratelimit: 0.5s
+
+#==================================
+
+#=== Per Emote Configuration Options ===
+
+  # Per Emote configuration options:
+  #-  speed: 0.2
+  # "Speed allows you to move during the emote at a set speed setting this to 0 prevents that."
+  # Default: 0
+  #-  turn_rate: 6.0
+  # "Determine how fast you will turn while moving in the emote higher values result in a faster turn rate setting this to 0 prevents turning." 
+  # Default: 0
+  #-  cam_range: 5
+  # "How far the camera can go from the player"
+  # Default: Camera max range in config
+  #-  cam_offset: -1,0,0
+  # "The camera offset relative to the player"
+  # Default: 0,0,0
+  #-  time_to_next_animation: 1s (Planned)
+  # "The time it takes for the model to transition to the next animation making it look smoother instead of doing it instantly"
+  # Default: 0s
+  #-  permission: emote.wave
+  # "The permission to use this emote set to none to disable"
+  # Default: none
+
+#========================================
+
+#=== Emotes =============================
+
   emotes:
-    sit:
-      speed: 0.0
-      turn_rate: 0.0
-      perm: emote.sit
+    my_example_emote:
+      speed: 0.2
+      turn_rate: 6.0
       cam_range: 5
-      cam_offset: -1,0,0
-      perm: emote.pirate_run
-    meditate:
-      speed: 0.1
-      turn_rate: 7.0
-      perm: emote.meditate
+      cam_offset: 0,0,0
+      permission: emote.my_example_emote
+    my_example_emote2:
+      speed: 0.6
+      turn_rate: 0.2
+      cam_range: 2
+      cam_offset: 0,0,0
 
-##API Usage #########################
-# # To begin an emote
-# - run pmodel_emote_task def.player:<player[FutureMaximus]> def.emote:wave
-# # To begin an emote without respawning the player model
-# - run pmodel_emote_task_passive def.player:<player[FutureMaximus]> def.emote:wave
-# # To stop an emote
-# - run pmodel_emote_task_stop def.player:<player[FutureMaximus]>
-# # Useful flags:
-# # To prevent the player from moving the player model
-# - flag <player> pmodel_no_move
-##################################
+#========================================
 
-##Emote Command:
-#Example: /emote wave /emote my_animation
-#To reload emotes /emote reload
+#===== Emote Command ====================
+
+# Example: /emote wave /emote my_animation
+# To reload emotes: /emote reload
+
 pmodel_emote_command:
   type: command
   debug: false
@@ -67,34 +90,53 @@ pmodel_emote_command:
   - emotes
   - gesture
   tab completions:
-    1: <proc[pmodel_emote_list].context[<player>]>
-  description: Emote command for player models that plays an animation
-  #permission: op.op
+    1: <player.proc[pmodel_emote_list]>
+  description: Emote command for player models
+  #=== End of config ===
   script:
-  - define a_1 <context.args.get[1].if_null[n]>
-  - define script <script[pmodel_emote_config].data_key[config]>
-  #arg 1 null
-  - if <[a_1].equals[n]>:
-    - narrate <&color[<[script.prefix_color]>]><[script.prefix]><&color[<[script.message_color]>]><[script.no_emote]>
-  - else:
-    - if !<player.is_op>:
-      #emote list for non op players
-      - define script_emotes <script[pmodel_emote_config].data_key[emotes]>
-      #check permission for emote
-      - define perm <[script_emotes.<[a_1]>.perm].if_null[n]>
-      - if <[perm].equals[n]>:
-        - narrate <&color[<[script.prefix_color]>]><[script.prefix]><&color[<[script.message_color]>]><[script.no_exist]>
-        - stop
-      - if !<player.has_permission[<[perm]>]>:
-        - narrate <&color[<[script.prefix_color]>]><[script.prefix]><&color[<[script.message_color]>]><[script.no_perm]>
-        - stop
-    - else if <player.is_op> && <[a_1]> == reload:
-        - ~run pmodel_emote_list
-        - narrate "<&color[<[script.prefix_color]>]><[script.prefix]> Emotes reloaded."
-        - reload
-        - stop
-    #should the player have the player model spawned already it will move to the emote instead
-    - if <player.has_flag[emote_ent]> && <player.flag[emote_ent].is_spawned>:
-      - run pmodel_emote_task_passive def:<player>|<[a_1]>
+  - define config <script[pmodel_emote_config].data_key[config]>
+  - ratelimit <player> <[config.command_ratelimit]>
+  - define arg1 <context.args.get[1]||null>
+  - if <[arg1]> == null:
+    - narrate <[config.prefix].parse_color><[config.no_emote_message].parse_color>
+  - else if <player.is_op> && <[arg1]> == reload:
+    - narrate "<[config.prefix].parse_color> Emotes reloaded."
+    - reload
+    - stop
+  - else if !<player.is_op>:
+    - define emotes <script[pmodel_emote_config].data_key[emotes]>
+    - define permission <[emotes.<[arg1]>.perm]||<[emotes.<[arg1]>.permission]>.if_null[null]>
+    - if <[permission]> == null:
+      - narrate <[config.prefix].parse_color><[config.emote_nonexistent_message].parse_color>
       - stop
-    - run pmodel_emote_task def:<player>|<[a_1]>
+    - else if !<player.has_permission[<[permission]>]>:
+      - narrate <[config.prefix].parse_color><[config.no_permission_message].parse_color>
+      - stop
+  # Should the player have the player model spawned already it will move to the emote instead of spawning a new player model
+  - if <player.has_flag[emote_ent]> && <player.flag[emote_ent].is_spawned>:
+    - run pmodel_emote_task_passive def.player:<player> def.emote:<[arg1]>
+    - stop
+  - run pmodel_emote_task def.player:<player> def.emote:<[arg1]>
+
+#========================================
+
+#===== Emote list procedure =====
+
+pmodel_emote_list:
+  type: procedure
+  definitions: player
+  debug: false
+  script:
+  - define emotes <script[pmodel_emote_config].data_key[emotes]||null>
+  - if <[emotes]> == null:
+    - determine <empty>
+  - else:
+    - foreach <[emotes]> key:emote_name as:emote:
+      - define perm <[emote.permission]||null>
+      - if <[perm]> == null:
+        - foreach next
+      - else if <[player].has_permission[<[perm]>]> || <[player].is_op>:
+        - define e_list:->:<[emote_name]>
+    - determine <[e_list]||<empty>>
+
+#================================
