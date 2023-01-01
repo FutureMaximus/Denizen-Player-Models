@@ -143,25 +143,6 @@ pmodels_load_bbmodel:
                     - define animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.position <[animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.position].sort_by_value[get[time]]>
                 - if <[animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.rotation].exists>:
                     - define animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.rotation <[animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.rotation].sort_by_value[get[time]]>
-            #Set before and after data based on interpolation methods (barely optimizes it but oh well)
-            - foreach <[animation_list.<[animation.name]>.animators]> key:a_uuid as:keyframe:
-              - foreach position|rotation as:channel:
-                - define frame_list <[keyframe.frames.<[channel]>]||null>
-                - if <[frame_list]> == null:
-                  - foreach next
-                - define new_frame_list:!
-                - foreach <[frame_list]> as:frame:
-                    - define time <[frame.time]>
-                    - define new_frame <[frame]>
-                    - define after <[frame_list].filter[get[time].is_more_than[<[time]>]].first||<[frame]>>
-                    - define new_frame.after <[after]>
-                    - if <[frame.interpolation]> == catmullrom:
-                        - define before_extra <[frame_list].filter[get[time].is_less_than[<[time]>]].last||null>
-                        - define new_frame.before_extra <[before_extra]>
-                        - define after_extra <[frame_list].filter[get[time].is_more_than[<[after.time]>]].first||null>
-                        - define new_frame.after_extra <[after_extra]>
-                    - define new_frame_list:->:<[new_frame]>
-                - define animation_list.<[animation.name]>.animators.<[a_uuid]>.frames.<[channel]>:<[new_frame_list]||<list>>
         # =============== Atlas gen =============== (Sourced from DModels)
         - define atlas_file <[pack_root]>/assets/minecraft/atlases/blocks.json
         - waituntil rate:1t max:15s !<server.has_flag[pmodels_temp_atlas_handling]>
@@ -273,7 +254,7 @@ pmodels_load_bbmodel:
     - define norm_data <[template_data.classic]||null>
     - define slim_data <[template_data.slim]||null>
     - if <[norm_data]> == null || <[slim_data]> == null || <[template_data]> == null:
-      - debug error "Could not find template files in data/pmodels/templates"
+      - debug error "Could not find templates for player models in config"
       - stop
     - flag server pmodels_data.template_data.norm:<[norm_data]>
     - flag server pmodels_data.template_data.slim:<[slim_data]>
