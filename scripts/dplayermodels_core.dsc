@@ -160,8 +160,8 @@ pmodels_animate:
         - flag <[root_entity]> pmodels_animation_to_interpolate:<[lerp_animation]>
       - else:
         # Gathers the data from the previous animation before starting the lerp in animation
-        - flag <[root_entity]> pmodels_animation_to_interpolate:<[lerp_animation]>
         - flag <[root_entity]> pmodels_get_before_lerp
+        - flag <[root_entity]> pmodels_animation_to_interpolate:<[lerp_animation]>
         - waituntil !<[root_entity].has_flag[pmodels_get_before_lerp]> max:1s
         - if <[root_entity].has_flag[pmodels_get_before_lerp]>:
           - stop
@@ -172,7 +172,6 @@ pmodels_animate:
       - flag <[root_entity]> pmodels_is_animating:true
     - flag <[root_entity]> pmodels_animation_id:<[animation]>
     - flag <[root_entity]> pmodels_anim_time:0
-    - flag server pmodels_anim_active.<[root_entity].uuid>
     # Spawn external bones if they exist in the animation
     - if <[root_entity].has_flag[external_parts]> && !<[lerp_in].is_truthy>:
       - if <[root_entity].has_flag[fake_to]>:
@@ -255,7 +254,7 @@ pmodels_end_animation:
     - flag <[root_entity]> pmodels_lerp:!
     - flag <[root_entity]> pmodels_animation_to_interpolate:!
     - flag <[root_entity]> pmodels_is_animating:false
-    - flag server pmodels_anim_active.<[root_entity].uuid>:!
+    - flag server pmodels_anim_active:<-:<[root_entity].uuid>
     - run pmodels_reset_model_position def.root_entity:<[root_entity]>
 
 pmodels_remove_model:
@@ -367,17 +366,18 @@ pmodels_move_to_frame:
         - case loop:
           - define timespot <[timespot].mod[<[animation_data.length]>]>
         - case once:
-          - flag server pmodels_anim_active.<[root_entity].uuid>:!
+          - flag server pmodels_anim_active:<-:<[root_entity]>
           - if !<[lerp_in].is_truthy>:
             - run pmodels_reset_model_position def.root_entity:<[root_entity]>
           - stop
         - case hold:
           - define timespot <[animation_data.length]>
-          - flag server pmodels_anim_active.<[root_entity].uuid>:!
+          - flag server pmodels_anim_active:<-:<[root_entity]>
           - if <[lerp_in].is_truthy>:
             - run pmodels_animate def.root_entity:<[root_entity]> def.animation:<[animation]> def.lerp_in:false def.reset:false
     - define yaw_mod <[root_entity].location.yaw.add[180].to_radians>
     - define parentage <map>
+    - define anim_parts <[root_entity].flag[pmodel_anim_part]||<list>>
     - foreach <[animation_data.animators]> key:part_id as:animator:
       - define framedata.position 0,0,0
       - define framedata.rotation 0,0,0
@@ -385,8 +385,7 @@ pmodels_move_to_frame:
         - define relevant_frames <[animator.frames.<[channel]>]||null>
         - if <[relevant_frames]> == null:
           - foreach next
-        - define data <[relevant_frames].proc[pmodels_interpolation_data].context[<[timespot]>|<[animation_data.loop]>]>
-        - define framedata.<[channel]> <[data]>
+        - define framedata.<[channel]> <[relevant_frames].proc[pmodels_interpolation_data].context[<[timespot]>|<[animation_data.loop]>]>
         - if <[gather_before_frames]||false>:
           - definemap lerp_before channel:<[channel]> interpolation:linear time:0 data:<[framedata.<[channel]>]>
           - define lerp_animation.animators.<[part_id]>.frames.<[channel]>:->:<[lerp_before]>
@@ -407,27 +406,31 @@ pmodels_move_to_frame:
       - define parentage.<[part_id]>.position:<[new_pos]>
       - define parentage.<[part_id]>.rotation:<[new_rot]>
       - define parentage.<[part_id]>.offset:<[rot_offset].add[<[parent_offset]>]>
-      - foreach <[root_entity].flag[pmodel_anim_part.<[part_id]>]||<list>> as:ent:
-        - define radian_rot <[new_rot].as[location].xyz.split[,]>
+      - if <[anim_parts.<[part_id]>].exists>:
+        - define anim_data.<[part_id]>.position:<[new_pos]>
+        - define anim_data.<[part_id]>.rotation:<[new_rot]>
+    - foreach <[anim_data]||<map>> key:part_id as:data:
+      - define ents <[anim_parts.<[part_id]>]||null>
+      - if <[ents]> == null:
+        - foreach next
+      - foreach <[ents]> as:ent:
+        - define radian_rot <[data.rotation].as[location].xyz.split[,]>
         - define pose <[radian_rot].get[1]>,<[radian_rot].get[2]>,<[radian_rot].get[3]>
         - adjust <[ent]> reset_client_location
         - choose <[ent].flag[pmodel_def_type]>:
           - case default:
             - define center <[root_entity].location.with_pitch[0].below[1.379].relative[0.32,0,0]>
-            - teleport <[ent]> <[center].add[<[new_pos].div[15.98].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
+            - teleport <[ent]> <[center].add[<[data.position].div[15.98].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
             - adjust <[ent]> armor_pose:[right_arm=<[pose]>]
           - case external:
             - define center <[root_entity].location.with_pitch[0].below[0.7]>
-            - teleport <[ent]> <[center].add[<[new_pos].div[15.98].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
+            - teleport <[ent]> <[center].add[<[data.position].div[15.98].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
             - adjust <[ent]> armor_pose:[head=<[pose]>]
         - adjust <[ent]> send_update_packets
     - if <[animators_changed]||false>:
       - define lerp_animation.contains_before_frames true
       - flag <[root_entity]> pmodels_animation_to_interpolate:<[lerp_animation]>
       - flag <[root_entity]> pmodels_get_before_lerp:!
-      - if <server.flag[debug_once]||0> == 0:
-        - ~filewrite data:<[lerp_animation].to_json[indent=4].utf8_encode> path:data/pmodels/debug/lerp_animation.json
-        - flag server debug_once:++
 
 pmodels_interpolation_data:
     type: procedure
@@ -513,7 +516,7 @@ pmodels_load_event:
     events:
       after server start:
       - if <script[pmodel_config].data_key[config].get[load_on_start].if_null[false].equals[true]>:
-        - ~run pmodels_load_bbmodel
+        - run pmodels_load_bbmodel
 
 pmodels_animator:
     type: world
