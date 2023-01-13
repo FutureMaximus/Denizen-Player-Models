@@ -4,7 +4,7 @@
 
 #=== Begin emote ==============
 # TODO:
-#- Rework this
+#- Rework this piece of crap
 pmodel_emote_task:
   type: task
   debug: false
