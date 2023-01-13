@@ -5,6 +5,7 @@
 
 pmodels_load_bbmodel:
     type: task
+    description: Loads all animations for Denizen Player Models
     debug: false
     script:
     # =============== Clear out pre-existing data ===============
@@ -273,13 +274,13 @@ pmodels_load_bbmodel:
           - define slim_models.<[uuid]>.type default
           - flag server pmodels_data.model_player_model_template_slim.<[uuid]>:<[slim_models.<[uuid]>]>
     - announce to_console "[Denizen Player Models] Loaded <[anim_count]||0> animations."
-    - define extern_count <[external_count]||null>
-    - if <[extern_count]> != null:
+    - if <[external_count].exists>:
       - announce to_console "[Denizen Player Models] <[external_count]> External bones have been loaded."
-    - determine <[anim_count]>
+    - determine <[anim_count]||0>
 
 pmodels_excluded_bones:
     type: data
+    description: Bones to exclude from player model loading
     bones:
     - player_root
     - head
@@ -297,6 +298,7 @@ pmodels_excluded_bones:
 
 pmodels_facefix:
     type: procedure
+    description: Facefix to fix the UVs of any external bones in the player model loading
     debug: false
     definitions: facedata|resolution
     script:
@@ -309,6 +311,7 @@ pmodels_facefix:
 
 pmodels_loader_addchild:
     type: task
+    description: Adds a child to a parent bone
     debug: false
     definitions: animation_file|parent|child
     script:
@@ -336,6 +339,7 @@ pmodels_loader_addchild:
 
 pmodels_loader_readoutline:
     type: task
+    description: Reads an outline from a JSON file
     debug: false
     definitions: animation_file|outline
     script:
@@ -349,6 +353,7 @@ pmodels_loader_readoutline:
 
 pmodels_denizen_logo_proc:
     type: procedure
+    description: Procedure to create the Denizen logo
     debug: false
     script:
     - determine iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAACXBIWXMAAAsSAAALEgHS3X78AAADAFBMVEX///8BAQL87pX875n+///97pP68Jn87pYAAAD77pYAAAH77ZYCAwL6+vv87Zb/+p79/v377Jj764/77ZUBAQX87Zj//v/+7ZhdXV2lnYP58JX8/P377Zj+7Jj97Zj77Zf87ZX77pUAAAH47pv/7Zr97Zf87Zf67JT67pgpKSn775P/8pwFAQX+/vvp6en/+Jv///z77pEaGhiJhWH975f575sGBQj375z///778JH67pIDAgz97Z0FBgTl5+IBAQf+//8vKxP765T8/Pz58JD775T865f77ZT87ZptbXP675X5+/b78JT//qD87Z3f1X+Ki4r37pzs5Yz/8535+fn8/fgpJyEsJyHe1X8pJyL97Zb97ZP97pESERHLysz39/cKCQdEREg2Oz387pNwaljf2H//8KD/8J/+9JgNDA0kHxb/95/565H/96OSkpL97Jj67pv/8pT865+zs7Olnnvs5Y/37JD97pj///n4+vo/Oyr/9Kn46pS7vL02OzhVTC3+8JPo6ej+7ZVVVlj/+pP97o00MzT78Zf/+ZcYFxf8+/z/9pFLTVD+/////Jnk5uFSSjP36ZZWTzGWlpYlJSX57pj+7pf67prc3Nyurq6enZ/475ZjXTyYkFvl5eXQ0ND88Jz67YlUUTw1Lh/t6Kb77phbW1r9/P5ZVz7y8/JeXmG3tXr78Iumnnb86aJmZWv18/YNCxr464yYkWaMiGb/+aVUTza4soX//7HHx8fo35Lu45eknG2lnYLy7Y/T1NFCQ0Hp4Kjw8O7w5pttZ0y/wL8eHx/56Zz37ore1ZLy6pUVEgv+//20q3epqqv+9KF3dnXWzpD28KxGPS2Fglajpqj8//0/PR/m359YVEc7OT0+O0P16IsuLi716ZP/8osVEQjq6Jnx651ycnKLglozLxNFQ0GtpnFtbXXv54z885vIvX1KRjJ9foLa0p1/dlLW1NSVkG1jX0SIiJEZHCb6+p/18pD2+PPNyYj8+omgoWvCu3xpZVHJuph2cFbIxZqlkjgZAAAGcUlEQVRYw7WXB1wTVxzHX07LvcviQoYtDebuQyXINLVGJMYoiSGFD1ZtqBZlaByACIoWKWALdTI+otS6cO+9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
