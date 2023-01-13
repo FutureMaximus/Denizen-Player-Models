@@ -1,25 +1,24 @@
 #This is required to spawn and animate the player models.
-#====================================== Core ======================================
+#====================================== Core ==========================================================
 
-# Determine if player has classic skin or slim skin this also works on npcs
-#-Param 1: player - "The player or npc to collect the skin texture from"
 pmodels_skin_type:
     type: procedure
+    description: Determines if the player has a classic skin or slim skin
     debug: false
-    definitions: player
+    definitions: player[(PlayerTag) - The player or npc to collect the skin texture from]
     script:
     - if <[player].is_npc||false>:
       - determine <util.parse_yaml[<npc[<[player]>].skin_blob.before[;].base64_to_binary.utf8_decode>].deep_get[textures.skin.metadata.model]||classic>
     - else if <[player].is_player||false>:
       - if <[player].is_online>:
         - determine <util.parse_yaml[<[player].skin_blob.before[;].base64_to_binary.utf8_decode>].deep_get[textures.skin.metadata.model]||classic>
-      - else:
-        - determine null
+      - determine null
     - else:
       - determine null
 
 pmodel_part_stand:
     type: entity
+    description: The base armor stand for the player model
     debug: false
     entity_type: armor_stand
     mechanisms:
@@ -32,6 +31,7 @@ pmodel_part_stand:
 
 pmodel_part_stand_small:
     type: entity
+    description: The small armor stand for the player model
     debug: false
     entity_type: armor_stand
     mechanisms:
@@ -42,14 +42,11 @@ pmodel_part_stand_small:
         is_small: true
         invulnerable: true
 
-# Spawns the player model at the location specified including if it should be only shown to a player
-#-Param 1: The location to spawn the player model at
-#-Param 2: The player or npc to get the skin from
-#-Param 3: The player to fake the player model to
 pmodels_spawn_model:
     type: task
+    description: Spawns the player model at the location specified including if it should be only shown to a player
     debug: false
-    definitions: location|player|fake_to
+    definitions: location[(LocationTag) - The location to spawn the player model at] | player[(PlayerTag or NPCTag) - The player or npc to use for the model] | fake_to[(PlayerTag) - The player(s) to fake the player model to]
     script:
     - if !<[player].exists>:
       - debug error "[Denizen Player Models] Must specify a player or npc to spawn the player model."
@@ -59,8 +56,6 @@ pmodels_spawn_model:
       - define skin_type <[player].proc[pmodels_skin_type]>
     - else if <[player].is_player||false>:
       - define skin_type <[player].flag[pmodels_skin_type]||<[player].proc[pmodels_skin_type]>>
-      - if <[skin_type]> == null:
-        - flag <[player]> pmodels_skin_type:<[skin_type]>
     - else:
       - debug error "[Denizen Player Models] Could not determine a valid player or npc for the skin type."
       - stop
@@ -127,15 +122,11 @@ pmodels_spawn_model:
       - flag <[root_entity]> external_parts:<[external_parts]>
     - determine <[root_entity]>
 
-# Animates the player model
-#-Param 1: root_entity - "The root entity of the model"
-#-Param 2: animation - "The name of the animation to play"
-#-Param 3: lerp_in - "Time to interpolate to the animation specified starting from the previous model's position"
-#-Param 4: reset - "If the player model should reset it's position"
 pmodels_animate:
     type: task
+    description: Animates a player model including if the player model should lerp in to the animation
     debug: false
-    definitions: root_entity|animation|lerp_in|reset
+    definitions: root_entity[(EntityTag) - The root entity of the player model] | animation[(ElementTag) - The animation the player model will play] | lerp_in[(DurationTag) - How long it takes to lerp in to the animation's first position] | reset[(Boolean) - Whether or not the player model will reset to the default position]
     script:
     - if !<[root_entity].is_spawned||false>:
       - debug error "[Denizen Player Models] <red>Cannot animate model <[root_entity]>, model not spawned"
@@ -156,7 +147,6 @@ pmodels_animate:
       - define lerp_animation <[animation_data.animators].proc[pmodels_animation_lerp_frames].context[<[lerp_in]>|<[is_animating]>]>
       - flag <[root_entity]> pmodels_lerp:<[lerp_in]>
       - if !<[is_animating]>:
-        - define lerp_animation.contains_before_frames true
         - flag <[root_entity]> pmodels_animation_to_interpolate:<[lerp_animation]>
       - else:
         # Gathers the data from the previous animation before starting the lerp in animation
@@ -176,8 +166,6 @@ pmodels_animate:
     - if <[root_entity].has_flag[external_parts]> && !<[lerp_in].is_truthy>:
       - if <[root_entity].has_flag[fake_to]>:
         - define fake_to <[root_entity].flag[fake_to]>
-      - else:
-        - define fake_to null
       - define center <[root_entity].location.with_pitch[0].below[0.7]>
       - define yaw_mod <[root_entity].location.yaw.add[180].to_radians>
       - foreach <[root_entity].flag[external_parts]> key:id as:part:
@@ -190,7 +178,7 @@ pmodels_animate:
           - define pose <[rots].get[1].mul[-1]>,<[rots].get[2].mul[-1]>,<[rots].get[3]>
           - define loc <[center].add[<[offset].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
           - define spawn_stand pmodel_part_stand_small[equipment=[helmet=<[part.item]>];armor_pose=[head=<[pose]>];tracking_range=256]
-          - if <[fake_to]> != null:
+          - if <[fake_to].exists>:
             - fakespawn <[spawn_stand]> <[loc]> players:<[fake_to]> d:infinite save:spawned
             - define spawned <entry[spawned].faked_entity>
           - else:
@@ -207,17 +195,17 @@ pmodels_animate:
           - flag <[root_entity]> pmodel_parts:->:<[spawned]>
           - flag <[root_entity]> pmodel_external_parts:->:<[spawned]>
           - flag <[root_entity]> pmodel_anim_part.<[id]>:->:<[spawned]>
+    - if <server.flag[pmodels_anim_active].contains[<[root_entity]>]||false>:
+      - flag server pmodels_anim_active:<-:<[root_entity]>
     - flag server pmodels_anim_active:->:<[root_entity]>
 
-# Creates the necessary lerp frames for the temporary animation used to interpolate to the new animation
-# if the player model is in the default state it will provide the before frames as well otherwise just the after frames
-#-Param 1: The animators of the animation to interpolate to
-#-Param 2: The interpolation time it takes to get to the next animation
-#-Param 3: Whether or not the player model is currently animating or in the default state
 pmodels_animation_lerp_frames:
     type: procedure
+    description:
+    - Creates the necessary lerp frames for the temporary animation used to interpolate to the new animation
+    - if the player model is in the default state it will provide the before frames as well otherwise just the after frames
     debug: false
-    definitions: animators|lerp_in|is_animating
+    definitions: animators[(MapTag) - The animators of the animation] | lerp_in[(DurationTag) - The length on how long it will take to get to the next animation] | is_animating[(Boolean) - Whether or not the player model is currently animating or in the default state]
     script:
     - define lerp_in <duration[<[lerp_in]>].in_seconds>
     - foreach <[animators]> key:part_id as:animator:
@@ -241,26 +229,28 @@ pmodels_animation_lerp_frames:
         animators: <[temp_animators]||<map>>
         length: <[lerp_in]>
         loop: hold
+        contains_before_frames: <[is_animating].if_true[false].if_false[true]>
     - determine <[temp_animation]>
 
-# Ends the animation
 pmodels_end_animation:
     type: task
+    description: Ends the animation the player model is currently playing
     debug: false
-    definitions: root_entity
+    definitions: root_entity[(EntityTag) - The root entity of the player model] | reset[(Boolean) - Whether the player model should be reset to the default position]
     script:
+    - flag server pmodels_anim_active:<-:<[root_entity].uuid>
     - flag <[root_entity]> pmodels_animation_id:!
     - flag <[root_entity]> pmodels_anim_time:0
-    - flag <[root_entity]> pmodels_lerp:!
     - flag <[root_entity]> pmodels_animation_to_interpolate:!
     - flag <[root_entity]> pmodels_is_animating:false
-    - flag server pmodels_anim_active:<-:<[root_entity].uuid>
-    - run pmodels_reset_model_position def.root_entity:<[root_entity]>
+    - if <[reset]||true>:
+      - run pmodels_reset_model_position def.root_entity:<[root_entity]>
 
 pmodels_remove_model:
     type: task
+    description: Removes the player model from the world
     debug: false
-    definitions: root_entity
+    definitions: root_entity[(EntityTag) - The root entity of the player model]
     script:
     - remove <[root_entity].flag[pmodel_parts]>
     - flag <[root_entity]> pmodel_external_parts:!
@@ -268,6 +258,7 @@ pmodels_remove_model:
 
 pmodels_remove_external_parts:
     type: task
+    description: Removes all external parts from the player model
     debug: false
     definitions: root_entity
     script:
@@ -277,8 +268,9 @@ pmodels_remove_external_parts:
 
 pmodels_reset_model_position:
     type: task
+    description: Resets the player model to the default position
     debug: false
-    definitions: root_entity
+    definitions: root_entity[(EntityTag) - The root entity of the player model]
     script:
     - define center <[root_entity].location.with_pitch[0].below[1.379].relative[0.32,0,0]>
     - define yaw_mod <[root_entity].location.yaw.add[180].to_radians>
@@ -291,13 +283,13 @@ pmodels_reset_model_position:
             - adjust <[part]> armor_pose:[head=<[part].flag[pmodel_def_pose]>]
         - teleport <[part]> <[center].add[<[part].flag[pmodel_def_offset].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
 
-# Note that this can take some time to process due to skin lookup
-#-Param 1: The player to change the skin of can be an npc as well
-#-Param 2: The root entity of the player model
 pmodels_change_skin:
     type: task
+    description:
+    - Changes the skin of the player model to the given player or npc's skin
+    - Note that this can take some time to process due to skin lookup
     debug: false
-    definitions: player|root_entity
+    definitions: player[(PlayerTag or NPCTag) - The player or npc skin the player model will change to] | root_entity[(EntityTag) - The root entity of the player model]
     script:
     - if <[player].is_npc||false>:
       - define skull_skin <[player].skull_skin>
@@ -314,7 +306,7 @@ pmodels_change_skin:
     - define norm_models <server.flag[pmodels_data.template_data.norm.models]||null>
     - define slim_models <server.flag[pmodels_data.template_data.slim.models]||null>
     - if <[norm_models]> == null || <[slim_models]> == null:
-      - debug error "[Denizen Player Models] Could not find templates for player models in the config"
+      - debug error "[Denizen Player Models] Could not find templates for player models in the server data."
       - stop
     - foreach <[tex_load_order]> as:bone:
       - foreach <[parts]> as:part:
@@ -347,28 +339,31 @@ pmodels_change_skin:
 
 pmodels_move_to_frame:
     type: task
+    description: Moves the player model to a frame in the animation
     debug: false
-    definitions: root_entity|animation|timespot
+    definitions: root_entity[(EntityTag) - The root entity of the player model] | animation[(ElementTag) - The animation the player model will move to] | timespot[(Ticks) - The timespot the player model will move to]
     script:
     - define model_data <server.flag[pmodels_data.model_<[root_entity].flag[pmodel_model_id]>]>
     - define lerp_in <[root_entity].flag[pmodels_lerp]||false>
     - if <[lerp_in].is_truthy>:
       - define lerp_animation <[root_entity].flag[pmodels_animation_to_interpolate]>
       - if !<[lerp_animation.contains_before_frames]||false>:
-        - define animation_data <server.flag[pmodels_data.animations_<[root_entity].flag[pmodel_model_id]>.<[animation]>]>
+        - define animation_data <server.flag[pmodels_data.animations_<[root_entity].flag[pmodel_model_id]>.<[animation]>]||null>
         - define gather_before_frames true
       - else:
         - define animation_data <[lerp_animation]>
     - else:
-      - define animation_data <server.flag[pmodels_data.animations_<[root_entity].flag[pmodel_model_id]>.<[animation]>]>
+      - define animation_data <server.flag[pmodels_data.animations_<[root_entity].flag[pmodel_model_id]>.<[animation]>]||null>
+    - if <[animation_data]> == null:
+      - stop
     - if <[timespot]> > <[animation_data.length]>:
       - choose <[animation_data.loop]>:
         - case loop:
           - define timespot <[timespot].mod[<[animation_data.length]>]>
         - case once:
-          - flag server pmodels_anim_active:<-:<[root_entity]>
           - if !<[lerp_in].is_truthy>:
-            - run pmodels_reset_model_position def.root_entity:<[root_entity]>
+            - define reset true
+          - run pmodels_end_animation def.root_entity:<[root_entity]> def.reset:<[reset]||false>
           - stop
         - case hold:
           - define timespot <[animation_data.length]>
@@ -432,10 +427,12 @@ pmodels_move_to_frame:
       - flag <[root_entity]> pmodels_animation_to_interpolate:<[lerp_animation]>
       - flag <[root_entity]> pmodels_get_before_lerp:!
 
+# Returns the interpolated data for a given time spot
 pmodels_interpolation_data:
     type: procedure
+    description: Returns the interpolated data for a given time spot
     debug: false
-    definitions: relevant_frames|timespot|loop
+    definitions: relevant_frames[(MapTag) - The frames that are relevant to the current channel] | timespot[(Tick) - The timespot of the animation] | loop[(ElementTag) - The loop state of the animation]
     script:
     - define before_frame <[relevant_frames].filter[get[time].is_less_than_or_equal_to[<[timespot]>]].last||null>
     - if <[before_frame]> == null:
@@ -464,8 +461,9 @@ pmodels_interpolation_data:
 
 pmodels_rot_proc:
     type: procedure
+    description: Rotates a location around the origin by a given rotation
     debug: false
-    definitions: loc|rot
+    definitions: loc[(LocationTag) - The location to rotate]|rot[(LocationTag) - The angles in radians to rotate the vector]
     script:
     - determine <[loc].rotate_around_x[<[rot].x.mul[-1]>].rotate_around_y[<[rot].y.mul[-1]>].rotate_around_z[<[rot].z>]>
 
@@ -480,8 +478,9 @@ pmodels_catmullrom_get_t:
 # Procedure script by mcmonkey creator of DModels https://github.com/mcmonkeyprojects/DenizenModels
 pmodels_catmullrom_proc:
     type: procedure
+    description: Catmullrom interpolation for animations
     debug: false
-    definitions: p0|p1|p2|p3|t
+    definitions: p0[Before Extra Frame] | p1[Before Frame] | p2[After Frame] | p3[After Extra Frame] | t[Time Percent]
     script:
     # Zero distances are impossible to calculate
     - if <[p2].sub[<[p1]>].vector_length> < 0.01:
@@ -510,22 +509,16 @@ pmodels_catmullrom_proc:
     - determine <[b1].mul[<[t2].sub[<[t]>].div[<[t2].sub[<[t1]>]>]>].add[<[b2].mul[<[t].sub[<[t1]>].div[<[t2].sub[<[t1]>]>]>]>]>
 
 #===== Events ===============================================================
-pmodels_load_event:
-    type: world
-    debug: false
-    events:
-      after server start:
-      - if <script[pmodel_config].data_key[config].get[load_on_start].if_null[false].equals[true]>:
-        - run pmodels_load_bbmodel
 
-pmodels_animator:
+pmodels_events:
     type: world
+    description: Event handler for Denizen Player Models
     debug: false
     events:
         on tick server_flagged:pmodels_anim_active:
         - foreach <server.flag[pmodels_anim_active]> as:root:
           - if <[root].is_spawned||false>:
-            - run pmodels_move_to_frame def.root_entity:<[root]> def.animation:<[root].flag[pmodels_animation_id]> def.timespot:<[root].flag[pmodels_anim_time].div[20]>
+            - run pmodels_move_to_frame def.root_entity:<[root]> def.animation:<[root].flag[pmodels_animation_id]||null> def.timespot:<[root].flag[pmodels_anim_time].div[20]>
             - flag <[root]> pmodels_anim_time:++
         on server start priority:-1000:
         # Cleanup
@@ -536,6 +529,9 @@ pmodels_animator:
         - wait 1t
         - define skin_type <player.proc[pmodels_skin_type]>
         - flag <player> pmodels_skin_type:<[skin_type]>
+        after server start:
+        - if <script[pmodel_config].data_key[config].get[load_on_start].if_null[false].equals[true]>:
+          - run pmodels_load_bbmodel
 #================================================================================
 
 #================================================================================================
