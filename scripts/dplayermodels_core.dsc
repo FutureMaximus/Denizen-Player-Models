@@ -122,130 +122,6 @@ pmodels_spawn_model:
       - flag <[root_entity]> external_parts:<[external_parts]>
     - determine <[root_entity]>
 
-pmodels_animate:
-    type: task
-    description: Animates a player model including if the player model should lerp in to the animation
-    debug: false
-    definitions: root_entity[(EntityTag) - The root entity of the player model] | animation[(ElementTag) - The animation the player model will play] | lerp_in[(DurationTag) - How long it takes to lerp in to the animation's first position] | reset[(Boolean) - Whether or not the player model will reset to the default position]
-    script:
-    - if !<[root_entity].is_spawned||false>:
-      - debug error "[Denizen Player Models] <red>Cannot animate model <[root_entity]>, model not spawned"
-      - stop
-    - if <[reset]||true>:
-      - run pmodels_reset_model_position def.root_entity:<[root_entity]>
-    - define animation_data <server.flag[pmodels_data.animations_<[root_entity].flag[pmodel_model_id]>.<[animation]>]||null>
-    - if <[animation_data]> == null:
-        - debug error "[Denizen Player Models] <red>Cannot animate entity <[root_entity].uuid> due to model <[root_entity].flag[pmodel_model_id]> not having an animation named <[animation]>."
-        - stop
-    - if <[root_entity].flag[pmodels_is_animating]||false>:
-      - define is_animating true
-    - else:
-      - define is_animating false
-    # Lerp in
-    - define lerp_in <[lerp_in]||false>
-    - if <duration[<[lerp_in]>]||null> != null:
-      - define lerp_animation <[animation_data.animators].proc[pmodels_animation_lerp_frames].context[<[lerp_in]>|<[is_animating]>]>
-      - flag <[root_entity]> pmodels_lerp:<[lerp_in]>
-      - if !<[is_animating]>:
-        - flag <[root_entity]> pmodels_animation_to_interpolate:<[lerp_animation]>
-      - else:
-        # Gathers the data from the previous animation before starting the lerp in animation
-        - flag <[root_entity]> pmodels_get_before_lerp
-        - flag <[root_entity]> pmodels_animation_to_interpolate:<[lerp_animation]>
-        - waituntil !<[root_entity].has_flag[pmodels_get_before_lerp]> max:1s
-        - if <[root_entity].has_flag[pmodels_get_before_lerp]>:
-          - stop
-    - else:
-      - flag <[root_entity]> pmodels_lerp:false
-      - flag <[root_entity]> pmodels_animation_to_interpolate:!
-    - if !<[is_animating]>:
-      - flag <[root_entity]> pmodels_is_animating:true
-    - flag <[root_entity]> pmodels_animation_id:<[animation]>
-    - flag <[root_entity]> pmodels_anim_time:0
-    # Spawn external bones if they exist in the animation
-    - if <[root_entity].has_flag[external_parts]> && !<[lerp_in].is_truthy>:
-      - if <[root_entity].has_flag[fake_to]>:
-        - define fake_to <[root_entity].flag[fake_to]>
-      - define center <[root_entity].location.with_pitch[0].below[0.7]>
-      - define yaw_mod <[root_entity].location.yaw.add[180].to_radians>
-      - foreach <[root_entity].flag[external_parts]> key:id as:part:
-        # Look for external bones in the animation
-        - if <[animation_data.animators.<[id]>].exists>:
-          - if !<[part.item].exists>:
-              - foreach next
-          - define offset <location[<[part.origin]>].div[15.98]>
-          - define rots <[part.rotation].split[,].parse[to_radians]||<list[0,0,0]>>
-          - define pose <[rots].get[1].mul[-1]>,<[rots].get[2].mul[-1]>,<[rots].get[3]>
-          - define loc <[center].add[<[offset].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
-          - define spawn_stand pmodel_part_stand_small[equipment=[helmet=<[part.item]>];armor_pose=[head=<[pose]>];tracking_range=256]
-          - if <[fake_to].exists>:
-            - fakespawn <[spawn_stand]> <[loc]> players:<[fake_to]> d:infinite save:spawned
-            - define spawned <entry[spawned].faked_entity>
-          - else:
-            - spawn <[spawn_stand]> <[loc]> save:spawned
-            - define spawned <entry[spawned].spawned_entity>
-          - flag <[spawned]> pmodel_def_pose:<[pose]>
-          - flag <[spawned]> pmodel_def_name:<[part.name]>
-          - flag <[spawned]> pmodel_def_uuid:<[id]>
-          - flag <[spawned]> pmodel_def_pos:<location[0,0,0]>
-          - flag <[spawned]> pmodel_def_item:<item[<[part.item]>]>
-          - flag <[spawned]> pmodel_def_offset:<[offset]>
-          - flag <[spawned]> pmodel_root:<[root_entity]>
-          - flag <[spawned]> pmodel_def_type:external
-          - flag <[root_entity]> pmodel_parts:->:<[spawned]>
-          - flag <[root_entity]> pmodel_external_parts:->:<[spawned]>
-          - flag <[root_entity]> pmodel_anim_part.<[id]>:->:<[spawned]>
-    - if <server.flag[pmodels_anim_active].contains[<[root_entity]>]||false>:
-      - flag server pmodels_anim_active:<-:<[root_entity]>
-    - flag server pmodels_anim_active:->:<[root_entity]>
-
-pmodels_animation_lerp_frames:
-    type: procedure
-    description:
-    - Creates the necessary lerp frames for the temporary animation used to interpolate to the new animation
-    - if the player model is in the default state it will provide the before frames as well otherwise just the after frames
-    debug: false
-    definitions: animators[(MapTag) - The animators of the animation] | lerp_in[(DurationTag) - The length on how long it will take to get to the next animation] | is_animating[(Boolean) - Whether or not the player model is currently animating or in the default state]
-    script:
-    - define lerp_in <duration[<[lerp_in]>].in_seconds>
-    - foreach <[animators]> key:part_id as:animator:
-      - foreach position|rotation as:channel:
-        - define relevant_frames <[animator.frames.<[channel]>]||null>
-        - define first_frame <[relevant_frames].first||null>
-        - if <[first_frame]> == null || <[relevant_frames]> == null:
-          - definemap first_frame channel:<[channel]> interpolation:linear time:<[lerp_in]> data:0,0,0
-        - else:
-          - define new_time <[lerp_in].add[<[first_frame.time]>]>
-          - if <[new_time]> > <[lerp_in]>:
-            - define new_time <[lerp_in]>
-          - define first_frame.time <[new_time]>
-        - define temp_animators.<[part_id]>.frames.<[channel]>:->:<[first_frame]>
-        # If the player model is in the default position or not animating
-        - if !<[is_animating]>:
-          - definemap new_first_frame channel:<[channel]> interpolation:linear time:0 data:0,0,0
-          - define temp_animators.<[part_id]>.frames.<[channel]>:->:<[new_first_frame]>
-          - define temp_animators.<[part_id]>.frames.<[channel]> <[temp_animators.<[part_id]>.frames.<[channel]>].sort_by_value[get[time]]>
-    - definemap temp_animation:
-        animators: <[temp_animators]||<map>>
-        length: <[lerp_in]>
-        loop: hold
-        contains_before_frames: <[is_animating].if_true[false].if_false[true]>
-    - determine <[temp_animation]>
-
-pmodels_end_animation:
-    type: task
-    description: Ends the animation the player model is currently playing
-    debug: false
-    definitions: root_entity[(EntityTag) - The root entity of the player model] | reset[(Boolean) - Whether the player model should be reset to the default position]
-    script:
-    - flag server pmodels_anim_active:<-:<[root_entity].uuid>
-    - flag <[root_entity]> pmodels_animation_id:!
-    - flag <[root_entity]> pmodels_anim_time:0
-    - flag <[root_entity]> pmodels_animation_to_interpolate:!
-    - flag <[root_entity]> pmodels_is_animating:false
-    - if <[reset]||true>:
-      - run pmodels_reset_model_position def.root_entity:<[root_entity]>
-
 pmodels_remove_model:
     type: task
     description: Removes the player model from the world
@@ -260,28 +136,11 @@ pmodels_remove_external_parts:
     type: task
     description: Removes all external parts from the player model
     debug: false
-    definitions: root_entity
+    definitions: root_entity[(EntityTag) - The root entity of the player model]
     script:
     - if <[root_entity].has_flag[pmodel_external_parts]>:
       - remove <[root_entity].flag[pmodel_external_parts]>
       - flag <[root_entity]> pmodel_external_parts:!
-
-pmodels_reset_model_position:
-    type: task
-    description: Resets the player model to the default position
-    debug: false
-    definitions: root_entity[(EntityTag) - The root entity of the player model]
-    script:
-    - define center <[root_entity].location.with_pitch[0].below[1.379].relative[0.32,0,0]>
-    - define yaw_mod <[root_entity].location.yaw.add[180].to_radians>
-    - foreach <[root_entity].flag[pmodel_parts]> as:part:
-        - choose <[part].flag[pmodel_def_type]>:
-          - case default:
-            - adjust <[part]> armor_pose:[right_arm=<[part].flag[pmodel_def_pose]>]
-          - case external:
-            - define center <[root_entity].location.with_pitch[0].below[0.7]>
-            - adjust <[part]> armor_pose:[head=<[part].flag[pmodel_def_pose]>]
-        - teleport <[part]> <[center].add[<[part].flag[pmodel_def_offset].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
 
 pmodels_change_skin:
     type: task
@@ -337,6 +196,146 @@ pmodels_change_skin:
       - flag <[root_entity]> skin_type:<[skin_type]>
       - run pmodels_reset_model_position def.root_entity:<[root_entity]>
 
+pmodels_animate:
+    type: task
+    description: Animates a player model including if the player model should lerp in to the animation
+    debug: false
+    definitions: root_entity[(EntityTag) - The root entity of the player model] | animation[(ElementTag) - The animation the player model will play] | lerp_in[(DurationTag) - How long it takes to lerp in to the animation's first position] | reset[(Boolean) - Whether or not the player model will reset to the default position]
+    script:
+    - if !<[root_entity].is_spawned||false>:
+      - debug error "[Denizen Player Models] <red>Cannot animate model <[root_entity]>, model not spawned"
+      - stop
+    - if <[reset]||true>:
+      - run pmodels_reset_model_position def.root_entity:<[root_entity]>
+    - define animation_data <server.flag[pmodels_data.animations_<[root_entity].flag[pmodel_model_id]>.<[animation]>]||null>
+    - if <[animation_data]> == null:
+        - debug error "[Denizen Player Models] <red>Cannot animate entity <[root_entity].uuid> due to model <[root_entity].flag[pmodel_model_id]> not having an animation named <[animation]>."
+        - stop
+    - if <[root_entity].flag[pmodels_is_animating]||false>:
+      - define is_animating true
+    - else:
+      - define is_animating false
+    # Lerp in
+    - if <duration[<[lerp_in]>].in_seconds.if_null[0]> != 0:
+      - define lerp_animation <[animation_data.animators].proc[pmodels_animation_lerp_frames].context[<[lerp_in]>|<[is_animating]>]>
+      - flag <[root_entity]> pmodels_lerp:<[lerp_in]>
+      - if !<[is_animating]>:
+        - flag <[root_entity]> pmodels_animation_to_interpolate:<[lerp_animation]>
+      - else:
+        # Gathers the data from the previous animation before starting the lerp in animation
+        - flag <[root_entity]> pmodels_get_before_lerp
+        - flag <[root_entity]> pmodels_animation_to_interpolate:<[lerp_animation]>
+        - waituntil !<[root_entity].has_flag[pmodels_get_before_lerp]> max:1s
+        - if <[root_entity].has_flag[pmodels_get_before_lerp]>:
+          - stop
+    - else:
+      - flag <[root_entity]> pmodels_lerp:false
+      - flag <[root_entity]> pmodels_animation_to_interpolate:!
+    - if !<[is_animating]>:
+      - flag <[root_entity]> pmodels_is_animating:true
+    - flag <[root_entity]> pmodels_animation_id:<[animation]>
+    - flag <[root_entity]> pmodels_anim_time:0
+    # Spawn external bones if they exist in the animation
+    - if <[root_entity].has_flag[external_parts]> && !<[lerp_in].exists>:
+      - if <[root_entity].has_flag[fake_to]>:
+        - define fake_to <[root_entity].flag[fake_to]>
+      - define center <[root_entity].location.with_pitch[0].below[0.7]>
+      - define yaw_mod <[root_entity].location.yaw.add[180].to_radians>
+      - foreach <[root_entity].flag[external_parts]> key:id as:part:
+        # Look for external bones in the animation
+        - if <[animation_data.animators.<[id]>].exists>:
+          - if !<[part.item].exists>:
+              - foreach next
+          - define offset <location[<[part.origin]>].div[15.98]>
+          - define rots <[part.rotation].split[,].parse[to_radians]||<list[0,0,0]>>
+          - define pose <[rots].get[1].mul[-1]>,<[rots].get[2].mul[-1]>,<[rots].get[3]>
+          - define loc <[center].add[<[offset].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
+          - define spawn_stand pmodel_part_stand_small[equipment=[helmet=<[part.item]>];armor_pose=[head=<[pose]>];tracking_range=256]
+          - if <[fake_to].exists>:
+            - fakespawn <[spawn_stand]> <[loc]> players:<[fake_to]> d:infinite save:spawned
+            - define spawned <entry[spawned].faked_entity>
+          - else:
+            - spawn <[spawn_stand]> <[loc]> save:spawned
+            - define spawned <entry[spawned].spawned_entity>
+          - flag <[spawned]> pmodel_def_pose:<[pose]>
+          - flag <[spawned]> pmodel_def_name:<[part.name]>
+          - flag <[spawned]> pmodel_def_uuid:<[id]>
+          - flag <[spawned]> pmodel_def_pos:<location[0,0,0]>
+          - flag <[spawned]> pmodel_def_item:<item[<[part.item]>]>
+          - flag <[spawned]> pmodel_def_offset:<[offset]>
+          - flag <[spawned]> pmodel_root:<[root_entity]>
+          - flag <[spawned]> pmodel_def_type:external
+          - flag <[root_entity]> pmodel_parts:->:<[spawned]>
+          - flag <[root_entity]> pmodel_external_parts:->:<[spawned]>
+          - flag <[root_entity]> pmodel_anim_part.<[id]>:->:<[spawned]>
+    - if <server.flag[pmodels_anim_active].contains[<[root_entity]>]||false>:
+      - flag server pmodels_anim_active:<-:<[root_entity]>
+    - flag server pmodels_anim_active:->:<[root_entity]>
+
+pmodels_animation_lerp_frames:
+    type: procedure
+    description: Creates the necessary lerp frames for the temporary animation used to interpolate to the new animation
+    debug: false
+    definitions: animators[(MapTag) - The animators of the animation] | lerp_in[(DurationTag) - The length on how long it will take to get to the next animation] | is_animating[(Boolean) - Whether or not the player model is currently animating or in the default state]
+    script:
+    - define lerp_in <duration[<[lerp_in]>].in_seconds>
+    - foreach <[animators]> key:part_id as:animator:
+      - foreach position|rotation as:channel:
+        - define relevant_frames <[animator.frames.<[channel]>]||null>
+        - define first_frame <[relevant_frames].first||null>
+        - if <[first_frame]> == null || <[relevant_frames]> == null:
+          - definemap first_frame channel:<[channel]> interpolation:linear time:<[lerp_in]> data:0,0,0
+        - else:
+          - define new_time <[lerp_in].add[<[first_frame.time]>]>
+          - if <[new_time]> > <[lerp_in]>:
+            - define new_time <[lerp_in]>
+          - define first_frame.time <[new_time]>
+        - define temp_animators.<[part_id]>.frames.<[channel]>:->:<[first_frame]>
+        # If the player model is in the default position or not animating
+        - if !<[is_animating]>:
+          - definemap new_first_frame channel:<[channel]> interpolation:linear time:0 data:0,0,0
+          - define temp_animators.<[part_id]>.frames.<[channel]>:->:<[new_first_frame]>
+          - define temp_animators.<[part_id]>.frames.<[channel]> <[temp_animators.<[part_id]>.frames.<[channel]>].sort_by_value[get[time]]>
+          - define contains_before_frames true
+    - definemap temp_animation:
+        animators: <[temp_animators]||<map>>
+        length: <[lerp_in]>
+        loop: lerp_in
+        contains_before_frames: <[contains_before_frames]||false>
+    - determine <[temp_animation]>
+
+pmodels_end_animation:
+    type: task
+    description: Ends the animation the player model is currently playing
+    debug: false
+    definitions: root_entity[(EntityTag) - The root entity of the player model] | reset[(Boolean) - Whether the player model should be reset to the default position]
+    script:
+    - flag server pmodels_anim_active:<-:<[root_entity].uuid>
+    - flag <[root_entity]> pmodels_animation_id:!
+    - flag <[root_entity]> pmodels_anim_time:0
+    - flag <[root_entity]> pmodels_animation_to_interpolate:!
+    - flag <[root_entity]> pmodels_is_animating:false
+    - flag <[root_entity]> pmodels_held_animation:!
+    - if <[reset]||true>:
+      - run pmodels_reset_model_position def.root_entity:<[root_entity]>
+
+pmodels_reset_model_position:
+    type: task
+    description: Resets the player model to the default position
+    debug: false
+    definitions: root_entity[(EntityTag) - The root entity of the player model]
+    script:
+    - define center <[root_entity].location.with_pitch[0].below[1.379].relative[0.32,0,0]>
+    - define yaw_mod <[root_entity].location.yaw.add[180].to_radians>
+    - foreach <[root_entity].flag[pmodel_parts]> as:part:
+        - choose <[part].flag[pmodel_def_type]>:
+          - case default:
+            - adjust <[part]> armor_pose:[right_arm=<[part].flag[pmodel_def_pose]>]
+          - case external:
+            - define center <[root_entity].location.with_pitch[0].below[0.7]>
+            - adjust <[part]> armor_pose:[head=<[part].flag[pmodel_def_pose]>]
+        - teleport <[part]> <[center].add[<[part].flag[pmodel_def_offset].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
+
 pmodels_move_to_frame:
     type: task
     description: Moves the player model to a frame in the animation
@@ -367,9 +366,9 @@ pmodels_move_to_frame:
           - stop
         - case hold:
           - define timespot <[animation_data.length]>
-          - flag server pmodels_anim_active:<-:<[root_entity]>
-          - if <[lerp_in].is_truthy>:
-            - run pmodels_animate def.root_entity:<[root_entity]> def.animation:<[animation]> def.lerp_in:false def.reset:false
+        - case lerp_in:
+          - define timespot <[animation_data.length]>
+          - run pmodels_animate def.root_entity:<[root_entity]> def.animation:<[animation]> def.lerp_in:false def.reset:false
     - define yaw_mod <[root_entity].location.yaw.add[180].to_radians>
     - define parentage <map>
     - define anim_parts <[root_entity].flag[pmodel_anim_part]||<list>>
@@ -427,7 +426,6 @@ pmodels_move_to_frame:
       - flag <[root_entity]> pmodels_animation_to_interpolate:<[lerp_animation]>
       - flag <[root_entity]> pmodels_get_before_lerp:!
 
-# Returns the interpolated data for a given time spot
 pmodels_interpolation_data:
     type: procedure
     description: Returns the interpolated data for a given time spot
