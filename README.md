@@ -37,10 +37,6 @@ There are run tasks available for controlling the player model and a method of s
 
 Note: This is in beta so it's likely stuff will change.
 
-Tested Denizen Version: REL-1776
-
-Tested Minecraft Version: 1.19.2
-
 Compatible with the mccosmetics plugin https://mythiccraft.io/index.php?resources/mccosmetics-the-ultimate-cosmetics-plugin.818/
 
 Warning: Please do not change the player model bone names as the script relies on them for data gathering and external bones are fine of course.
