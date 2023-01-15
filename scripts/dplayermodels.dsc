@@ -16,10 +16,9 @@
 # @script-version 1.6 BETA
 # @Github https://github.com/FutureMaximus/Denizen-Player-Models
 
-#=== Changelog for 1.6 ===
+#=== Changelog for 1.7 ===
 
-# - Removed need for template files
-# - Implemented atlas support for 1.19.3
+# - Implemented ability to lerp into animations
 
 #=========================
 
@@ -106,7 +105,7 @@ pmodel_config:
   type: data
   config:
     # Load animations on server start
-    load_on_start: false
+    load_on_start: true
     # Reload scripts on /pmodel reload
     reload_scripts: false
     # Item to use for external bones
