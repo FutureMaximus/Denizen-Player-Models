@@ -4,7 +4,7 @@
 
 #=== Begin emote ==============
 # TODO:
-#- Rework this piece of crap
+#- Rework this
 pmodel_emote_task:
   type: task
   debug: false
@@ -82,25 +82,24 @@ pmodel_emote_task_stop:
   - define player <player[<[player]>].if_null[n]>
   - if <[player].equals[n]>:
     - define player <player>
-  - else:
-    - run pmodels_remove_model def.root_entity:<[player].flag[emote_ent]>
-    - mount cancel <[player]>
-    - teleport <[player]> <[player].flag[emote_vehicle].location>
-    - adjust <[player]> invulnerable:false
-    - remove <[player].flag[emote_vehicle]>
-    - if <[player].has_flag[emote_display]>:
-      - remove <[player].flag[emote_display]>
-      - flag <[player]> emote_display:!
-    - remove <[player].flag[pmodel_collide_box]>
-    - remove <[player].flag[emote_mount]>
-    - remove <[player].flag[pmodel_ray_ent]>
-    - flag <[player]> pmodel_collide_box:!
-    - flag <[player]> emote_vehicle:!
-    - flag <[player]> emote_mount:!
-    - flag <[player]> emote:!
-    - adjust <[player]> show_to_players
-    - wait 2t
-    - cast INVISIBILITY remove <[player]>
+  - run pmodels_remove_model def.root_entity:<[player].flag[emote_ent]>
+  - mount cancel <[player]>
+  - teleport <[player]> <[player].flag[emote_vehicle].location>
+  - adjust <[player]> invulnerable:false
+  - remove <[player].flag[emote_vehicle]>
+  - if <[player].has_flag[emote_display]>:
+    - remove <[player].flag[emote_display]>
+    - flag <[player]> emote_display:!
+  - remove <[player].flag[pmodel_collide_box]>
+  - remove <[player].flag[emote_mount]>
+  - remove <[player].flag[pmodel_ray_ent]>
+  - flag <[player]> pmodel_collide_box:!
+  - flag <[player]> emote_vehicle:!
+  - flag <[player]> emote_mount:!
+  - flag <[player]> emote:!
+  - adjust <[player]> show_to_players
+  - wait 2t
+  - cast INVISIBILITY remove <[player]>
 
 #TODO:
 #- Fix issue where model stops at space that should allow passage
