@@ -20,7 +20,8 @@ out vec4 vertexColor, lightMapColor, overlayColor, normal;
 out vec2 texCoord0, texCoord1;
 out vec3 a, b;
 
-vec3 getCubeSize(int cube) {
+vec3 getCubeSize(int cube) 
+{
     if(cube >= 2 && cube <= 7)
         return vec3(8, 4, 4);
 
@@ -33,14 +34,18 @@ vec3 getCubeSize(int cube) {
     return vec3(8, 8, 8);
 }
 
-vec2 getBoxUV(int cube) {
-    switch(cube) {
+vec2 getBoxUV(int cube) 
+{
+    switch(cube) 
+    {
         case 0: // Head
             return vec2(0, 0);
         case 1: // Hat
             return vec2(32, 0);
         case 2: // Hip
+            return vec2(16, 16);
         case 4: // Waist
+            return vec2(16, 16);
         case 6: // Chest
             return vec2(16, 16);
         case 3:
@@ -76,9 +81,11 @@ vec2 getBoxUV(int cube) {
     return vec2(0, 0);
 }
 
-float getYOffset(int cube) {
+float getYOffset(int cube) 
+{
     float r = 0;
-    switch(cube) {
+    switch(cube) 
+    {
         case 2:
         case 3:
             r = 8;
@@ -101,9 +108,11 @@ float getYOffset(int cube) {
     return r / 64.;
 }
 
-vec2 getUVOffset(int corner, vec3 cubeSize, float yOffset) {
+vec2 getUVOffset(int corner, vec3 cubeSize, float yOffset) 
+{
     vec2 offset, uv;
-    switch(corner / 4) {
+    switch(corner / 4) 
+    {
         case 0: // Up
             offset = vec2(cubeSize.z, 0);
             uv = vec2(cubeSize.x, cubeSize.z);
@@ -134,7 +143,8 @@ vec2 getUVOffset(int corner, vec3 cubeSize, float yOffset) {
             break;
     }
 
-    switch(corner % 4) {
+    switch(corner % 4) 
+    {
         case 0:
             offset += vec2(uv.x, 0);
             break;
@@ -150,14 +160,31 @@ vec2 getUVOffset(int corner, vec3 cubeSize, float yOffset) {
 }
 
 bool shouldRender(int cube, int corner) {
-    if(corner / 8 != 1 || cube % 2 == 0 || cube == 1)
+    int cornerCheck4 = corner / 4;
+    int cornerCheck8 = corner / 8;
+
+    if (cornerCheck8 == 0 && cornerCheck4 != 1)
+    {
+        // Excludes the outer layer of the top of the forearms
+        if (cube == 11 || cube == 15) return false;
+        // Excludes the outer layer of the top of the forelegs
+        else if (cube == 19 || cube == 23) return false;
+    }
+    else if (cornerCheck8 == 0 && cornerCheck4 != 0)
+    {
+        // Excludes the outer layer of the bottom part of the legs
+        if (cube == 17 || cube == 21) return false;
+    }
+
+    if(cornerCheck8 != 2 || cornerCheck8 != 1 || cube % 2 == 0 || cube == 1)
         return true;
 
     if(cube == 5)
         return false;
 
     bool r = false;
-    switch(cube) {
+    switch(cube)
+    {
         case 7:
         case 9:
         case 13:
@@ -166,34 +193,41 @@ bool shouldRender(int cube, int corner) {
             r = true;
     }
 
-    if(corner / 4 == 3)
+    if(cornerCheck4 == 3)
         r = !r;
 
     return r;
 }
 
-void main() {
+void main() 
+{
     gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);
 
     a = b = vec3(0);
     if(textureSize(Sampler0, 0) == vec2(64, 64) && UV0.y <= 0.25 && (gl_VertexID / 24 != 6 || UV0.x <= 0.5)) {
 
-        switch(gl_VertexID % 4) {
+        switch(gl_VertexID % 4) 
+        {
             case 0: a = vec3(UV0, 1); break;
             case 2: b = vec3(UV0, 1); break;
         }
 		// 1 3 5 9 11 13 15 17
         int cube = (gl_VertexID / 24) % 24;
         int corner = gl_VertexID % 24;
-        if(shouldRender(cube, corner)) {
+        if(shouldRender(cube, corner)) 
+        {
             vec3 cubeSize = getCubeSize(cube) / 64;
             vec2 boxUV = getBoxUV(cube) / 64;
             vec2 uvOffset = getUVOffset(corner, cubeSize, getYOffset(cube));
             texCoord0 = boxUV + uvOffset;
-        }else {
+        } 
+        else 
+        {
             texCoord0 = vec2(-1);
         }
-    }else {
+    } 
+    else 
+    {
         texCoord0 = UV0;
     }
 
