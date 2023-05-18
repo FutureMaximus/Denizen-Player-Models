@@ -159,20 +159,22 @@ vec2 getUVOffset(int corner, vec3 cubeSize, float yOffset)
     return offset;
 }
 
-bool shouldRender(int cube, int corner) {
+// Determines if a face of a cube should render or not
+bool shouldRender(int cube, int corner) 
+{
     int cornerCheck4 = corner / 4;
     int cornerCheck8 = corner / 8;
 
     if (cornerCheck8 == 0 && cornerCheck4 != 1)
     {
-        // Excludes the outer layer of the top of the forearms
+        // Excludes the outer layer of the top face of the forearms
         if (cube == 11 || cube == 15) return false;
-        // Excludes the outer layer of the top of the forelegs
+        // Excludes the outer layer of the top face of the forelegs
         else if (cube == 19 || cube == 23) return false;
     }
     else if (cornerCheck8 == 0 && cornerCheck4 != 0)
     {
-        // Excludes the outer layer of the bottom part of the legs
+        // Excludes the outer layer of the bottom face of the legs
         if (cube == 17 || cube == 21) return false;
     }
 
@@ -204,29 +206,30 @@ void main()
     gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);
 
     a = b = vec3(0);
-    if(textureSize(Sampler0, 0) == vec2(64, 64) && UV0.y <= 0.25 && (gl_VertexID / 24 != 6 || UV0.x <= 0.5)) {
-
-        switch(gl_VertexID % 4) 
+    if(textureSize(Sampler0, 0) == vec2(64, 64) && UV0.y <= 0.25 && (gl_VertexID / 24 != 6 || UV0.x <= 0.5)) 
+    {
+        switch(gl_VertexID % 4)
         {
             case 0: a = vec3(UV0, 1); break;
             case 2: b = vec3(UV0, 1); break;
         }
+        
 		// 1 3 5 9 11 13 15 17
         int cube = (gl_VertexID / 24) % 24;
         int corner = gl_VertexID % 24;
-        if(shouldRender(cube, corner)) 
+        if(shouldRender(cube, corner))
         {
             vec3 cubeSize = getCubeSize(cube) / 64;
-            vec2 boxUV = getBoxUV(cube) / 64;
+            vec2 boxUV = getBoxUV(cube) / 64.0;
             vec2 uvOffset = getUVOffset(corner, cubeSize, getYOffset(cube));
             texCoord0 = boxUV + uvOffset;
-        } 
-        else 
+        }
+        else
         {
             texCoord0 = vec2(-1);
         }
     } 
-    else 
+    else
     {
         texCoord0 = UV0;
     }
