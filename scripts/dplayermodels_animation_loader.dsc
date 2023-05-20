@@ -35,7 +35,7 @@ pmodels_load_bbmodel:
           - stop
         - define override_item_filepath <[pack_root]>/assets/minecraft/models/item/<script[pmodel_config].data_key[config].get[item]>.json
         - define file data/pmodels/animations/<[animation_file]>.bbmodel
-        - define scale_factor <element[2.285].div[4]>
+        - define scale_factor <element[0.25].div[4.0]>
         - define mc_texture_data <map>
         - flag server pmodels_data.temp_<[animation_file]>:!
         # =============== BBModel loading and validation ===============
@@ -57,7 +57,7 @@ pmodels_load_bbmodel:
             - stop
         # =============== Pack validation ===============
         - if !<util.has_file[<[pack_root]>/pack.mcmeta]>:
-            - define pack_version 12
+            - define pack_version 13
             - ~filewrite path:data/pmodels/external_bones_res_pack/pack.mcmeta data:<map.with[pack].as[<map[pack_format=<[pack_version]>;description=denizen_player_models_pack]>].to_json[native_types=true;indent=4].utf8_encode>
             - ~filewrite path:data/pmodels/external_bones_res_pack/pack.png data:<proc[pmodels_denizen_logo_proc].base64_to_binary>
         # =============== Elements loading ===============
@@ -135,15 +135,14 @@ pmodels_load_bbmodel:
                     - definemap anim_map channel:<[channel]> time:<[keyframe.time]> interpolation:<[keyframe.interpolation]>
                     - define data_points <[keyframe.data_points].first>
                     - if <[channel]> == rotation:
-                        - define anim_map.data <[data_points.x].trim.to_radians>,<[data_points.y].trim.to_radians>,<[data_points.z].trim.to_radians>
+                        - define anim_map.data <proc[pmodels_quaternion_from_euler].context[<[data_points.x].trim.to_radians.mul[-1]>|<[data_points.y].trim.to_radians.mul[-1]>|<[data_points.z].trim.to_radians>]>
                     - else:
                         - define anim_map.data <[data_points.x].trim>,<[data_points.y].trim>,<[data_points.z].trim>
                     - define animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.<[channel]>:->:<[anim_map]>
                 #Time sort
-                - if <[animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.position].exists>:
-                    - define animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.position <[animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.position].sort_by_value[get[time]]>
-                - if <[animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.rotation].exists>:
-                    - define animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.rotation <[animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.rotation].sort_by_value[get[time]]>
+                - foreach position|rotation|scale as:channel:
+                  - if <[animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.<[channel]>].exists>:
+                    - define animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.<[channel]> <[animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.<[channel]>].sort_by_value[get[time]]>
         # =============== Atlas gen =============== (Sourced from DModels)
         - define atlas_file <[pack_root]>/assets/minecraft/atlases/blocks.json
         - waituntil rate:1t max:15s !<server.has_flag[pmodels_temp_atlas_handling]>
@@ -216,7 +215,7 @@ pmodels_load_bbmodel:
                 - if <[find]> == -1:
                     - definemap json_group name:<[outline.name]> color:0 children:<util.list_numbers[from=0;to=<[child_count]>]> origin:<[outline_origin].mul[<[scale_factor]>].xyz.split[,]>
                     - define model_json.groups <list[<[json_group]>]>
-                    - define model_json.display.head.translation <list[32|25|32]>
+                    - define model_json.display.head.translation <list[32|32|32]>
                     - define model_json.display.head.scale <list[4|4|4]>
                     - define modelpath item/pmodels/<[animation_file]>/<[outline.name]>
                     - if <[item_validate]> != null:
@@ -241,9 +240,8 @@ pmodels_load_bbmodel:
                 ## This sets the actual live usage flag data for external bones should they exist
                 - flag server pmodels_data.model_player_model_template_norm.<[outline.uuid]>:<[outline]>
                 - flag server pmodels_data.model_player_model_template_slim.<[outline.uuid]>:<[outline]>
-        - if <[item_validate]> != null:
-            - if <[overrides_changed]>:
-                - ~filewrite path:<[override_item_filepath]> data:<[override_item_data].to_json[native_types=true;indent=4].utf8_encode>
+        - if <[item_validate]> != null && <[overrides_changed]>:
+            - ~filewrite path:<[override_item_filepath]> data:<[override_item_data].to_json[native_types=true;indent=4].utf8_encode>
         # Final clear of temp data
         - flag server pmodels_data.temp_<[animation_file]>:!
     # Set the animations
@@ -257,11 +255,20 @@ pmodels_load_bbmodel:
     - if <[norm_data]> == null || <[slim_data]> == null || <[template_data]> == null:
       - debug error "Could not find templates for player models in config"
       - stop
+    # TODO: Remove euler to quaternion as every rotation is identity for template
+    - foreach <[norm_data.models]> key:model_key as:model_data:
+        - define rot <[model_data.rotation].split[,]>
+        - define quaternion_rot <proc[pmodels_quaternion_from_euler].context[<[rot].get[1]>|<[rot].get[2]>|<[rot].get[3]>]>
+        - define norm_data.models.<[model_key]>.rotation:<[quaternion_rot]>
+    - foreach <[slim_data.models]> key:model_key as:model_data:
+        - define rot <[model_data.rotation].split[,]>
+        - define quaternion_rot <proc[pmodels_quaternion_from_euler].context[<[rot].get[1]>|<[rot].get[2]>|<[rot].get[3]>]>
+        - define slim_data.models.<[model_key]>.rotation:<[quaternion_rot]>
     - flag server pmodels_data.template_data.norm:<[norm_data]>
     - flag server pmodels_data.template_data.slim:<[slim_data]>
     - define norm_models <[norm_data.models]>
     - define slim_models <[slim_data.models]>
-    - define tex_load_order <list[player_root|head|hip|waist|chest|right_arm|right_forearm|left_arm|left_forearm|right_leg|right_foreleg|left_leg|left_foreleg]>
+    - define tex_load_order player_root|head|hip|waist|chest|right_arm|right_forearm|left_arm|left_forearm|right_leg|right_foreleg|left_leg|left_foreleg
     - foreach <[tex_load_order]> as:tex_name:
       - foreach <[norm_models]> key:uuid as:model:
         - if <[model.name]> == <[tex_name]>:
@@ -271,9 +278,9 @@ pmodels_load_bbmodel:
         - if <[model.name]> == <[tex_name]>:
           - define slim_models.<[uuid]>.type default
           - flag server pmodels_data.model_player_model_template_slim.<[uuid]>:<[slim_models.<[uuid]>]>
-    - announce to_console "[Denizen Player Models] Loaded <[anim_count]||0> animations."
+    - debug log "[Denizen Player Models] Loaded <[anim_count]||0> animations."
     - if <[external_count].exists>:
-      - announce to_console "[Denizen Player Models] <[external_count]> External bones have been loaded."
+      - debug log "[Denizen Player Models] <[external_count]> External bones have been loaded."
     - determine <[anim_count]||0>
 
 pmodels_excluded_bones:
@@ -349,9 +356,20 @@ pmodels_loader_readoutline:
     - foreach <[raw_children]> as:child:
         - run pmodels_loader_addchild def.animation_file:<[animation_file]> def.parent:<[outline]> def.child:<[child]>
 
+pmodels_quaternion_from_euler:
+    type: procedure
+    debug: false
+    definitions: x|y|z
+    description: Converts euler angles in radians to a quaternion.
+    script:
+    - define x_q <location[1,0,0].to_axis_angle_quaternion[<[x]>]>
+    - define y_q <location[0,1,0].to_axis_angle_quaternion[<[y]>]>
+    - define z_q <location[0,0,1].to_axis_angle_quaternion[<[z]>]>
+    - determine <[x_q].mul[<[y_q]>].mul[<[z_q]>]>
+
 pmodels_denizen_logo_proc:
     type: procedure
-    description: Procedure to create the Denizen logo
+    description: Procedure that contains the Denizen logo
     debug: false
     script:
     - determine iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAACXBIWXMAAAsSAAALEgHS3X78AAADAFBMVEX///8BAQL87pX875n+///97pP68Jn87pYAAAD77pYAAAH77ZYCAwL6+vv87Zb/+p79/v377Jj764/77ZUBAQX87Zj//v/+7ZhdXV2lnYP58JX8/P377Zj+7Jj97Zj77Zf87ZX77pUAAAH47pv/7Zr97Zf87Zf67JT67pgpKSn775P/8pwFAQX+/vvp6en/+Jv///z77pEaGhiJhWH975f575sGBQj375z///778JH67pIDAgz97Z0FBgTl5+IBAQf+//8vKxP765T8/Pz58JD775T865f77ZT87ZptbXP675X5+/b78JT//qD87Z3f1X+Ki4r37pzs5Yz/8535+fn8/fgpJyEsJyHe1X8pJyL97Zb97ZP97pESERHLysz39/cKCQdEREg2Oz387pNwaljf2H//8KD/8J/+9JgNDA0kHxb/95/565H/96OSkpL97Jj67pv/8pT865+zs7Olnnvs5Y/37JD97pj///n4+vo/Oyr/9Kn46pS7vL02OzhVTC3+8JPo6ej+7ZVVVlj/+pP97o00MzT78Zf/+ZcYFxf8+/z/9pFLTVD+/////Jnk5uFSSjP36ZZWTzGWlpYlJSX57pj+7pf67prc3Nyurq6enZ/475ZjXTyYkFvl5eXQ0ND88Jz67YlUUTw1Lh/t6Kb77phbW1r9/P5ZVz7y8/JeXmG3tXr78Iumnnb86aJmZWv18/YNCxr464yYkWaMiGb/+aVUTza4soX//7HHx8fo35Lu45eknG2lnYLy7Y/T1NFCQ0Hp4Kjw8O7w5pttZ0y/wL8eHx/56Zz37ore1ZLy6pUVEgv+//20q3epqqv+9KF3dnXWzpD28KxGPS2Fglajpqj8//0/PR/m359YVEc7OT0+O0P16IsuLi716ZP/8osVEQjq6Jnx651ycnKLglozLxNFQ0GtpnFtbXXv54z885vIvX1KRjJ9foLa0p1/dlLW1NSVkG1jX0SIiJEZHCb6+p/18pD2+PPNyYj8+omgoWvCu3xpZVHJuph2cFbIxZqlkjgZAAAGcUlEQVRYw7WXB1wTVxzHX07LvcviQoYtDebuQyXINLVGJMYoiSGFD1ZtqBZlaByACIoWKWALdTI+otS6cO+9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
