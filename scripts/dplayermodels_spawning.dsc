@@ -69,9 +69,6 @@ pmodels_spawn_model:
         - define part_item <entry[item].result>
         #When going too far from the player model textures can get messed up setting the tracking range to 256 fixes the issue
         - define offset_translate <[offset].div[16].proc[pmodels_mul_vecs].context[<[global_scale]>]>
-        #- define offset_translate <[offset].div[10].proc[pmodels_mul_vecs].context[<[global_scale]>]>
-        - define brightness.sky 15
-        - define brightness.block 15
         - define spawn_display pmodel_part_display[item=<[part_item]>;display=THIRDPERSON_RIGHTHAND;tracking_range=256;translation=<[offset_translate]>;scale=<[global_scale]>;left_rotation=<[orientation].mul[<[pose]>]>]
         - if <[fake_to].exists>:
           - fakespawn <[spawn_display]> <[center]> players:<[fake_to]> d:infinite save:spawned
@@ -92,8 +89,8 @@ pmodels_spawn_model:
         - flag <[spawned]> pmodel_def_type:default
         - flag <[root_entity]> pmodel_parts:->:<[spawned]>
         - flag <[root_entity]> pmodel_anim_part.<[id]>:->:<[spawned]>
-    #- if <[external_parts].exists>:
-    #  - flag <[root_entity]> external_parts:<[external_parts]>
+    - if <[external_parts].exists>:
+      - flag <[root_entity]> external_parts:<[external_parts]>
     - determine <[root_entity]>
 
 pmodels_reset_model_position:
