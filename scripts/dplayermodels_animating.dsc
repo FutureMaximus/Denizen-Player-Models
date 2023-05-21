@@ -41,12 +41,11 @@ pmodels_animate:
     - flag <[root_entity]> pmodels_animation_id:<[animation]>
     - flag <[root_entity]> pmodels_anim_time:0
     # Spawn external bones if they exist in the animation
-    # TODO: Rework this to support display entity
     - if <[root_entity].has_flag[external_parts]> && !<[lerp_in].exists>:
       - define global_scale <[root_entity].flag[pmodel_global_scale]>
       - if <[root_entity].has_flag[fake_to]>:
         - define fake_to <[root_entity].flag[fake_to]>
-      - define center <[root_entity].location.with_pitch[0]>
+      - define center <[root_entity].location.with_pitch[0].above[0.5]>
       - define yaw_quaternion <location[0,1,0].to_axis_angle_quaternion[<[center].yaw.add[180].to_radians.mul[-1]>]>
       - define orientation <[yaw_quaternion].mul[<[root_entity].flag[pmodels_global_rotation]>]>
       - foreach <[root_entity].flag[external_parts]> key:id as:part:
@@ -54,15 +53,11 @@ pmodels_animate:
         - if !<[animation_data.animators.<[id]>].exists> || !<[part.item].exists>:
           - foreach next
         - define offset <[orientation].transform[<[part.origin]>]>
-        - define rots <[part.rotation].split[,]||<list[0|0|0|1]>>
+        - define rots <[part.rotation].split[,]>
         - define pose <quaternion[<[rots].get[1]>,<[rots].get[2]>,<[rots].get[3]>,<[rots].get[4]>]>
         - define part_item <[part.item]>
-        #When going too far from the player model textures can get messed up setting the tracking range to 256 fixes the issue
         - define offset_translate <[offset].div[16].proc[pmodels_mul_vecs].context[<[global_scale]>]>
-        #- define offset_translate <[offset].div[10].proc[pmodels_mul_vecs].context[<[global_scale]>]>
-        - define brightness.sky 15
-        - define brightness.block 15
-        - define spawn_display pmodel_part_display[item=<[part_item]>;brightness=<[brightness]>;display=THIRDPERSON_RIGHTHAND;tracking_range=256;translation=<[offset_translate]>;scale=<[global_scale]>;left_rotation=<[orientation].mul[<[pose]>]>]
+        - define spawn_display pmodel_part_display[item=<[part_item]>;display=HEAD;tracking_range=256;translation=<[offset_translate]>;scale=<[global_scale]>;left_rotation=<[orientation].mul[<[pose]>]>]
         - if <[fake_to].exists>:
           - fakespawn <[spawn_display]> <[center]> players:<[fake_to]> d:infinite save:spawned
           - define spawned <entry[spawned].faked_entity>
@@ -137,7 +132,9 @@ pmodels_move_to_frame:
     debug: false
     definitions: root_entity[(EntityTag) - The root entity of the player model] | animation[(ElementTag) - The animation the player model will move to] | timespot[(Ticks) - The timespot the player model will move to]
     script:
-    - define model_data <server.flag[pmodels_data.model_<[root_entity].flag[pmodel_model_id]>]>
+    - define model_data <server.flag[pmodels_data.model_<[root_entity].flag[pmodel_model_id]>]||null>
+    - if <[model_data]> == null:
+      - stop
     - define lerp_in <[root_entity].flag[pmodels_lerp]||false>
     - if <[lerp_in].is_truthy>:
       - define lerp_animation <[root_entity].flag[pmodels_animation_to_interpolate]>
@@ -248,7 +245,6 @@ pmodels_move_to_frame:
           #  - define center <[root_entity].location.with_pitch[0].below[0.7]>
           #  - teleport <[ent]> <[center].add[<[data.position].div[15.98].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
           #  - adjust <[ent]> armor_pose:[head=<[pose]>]
-        #- adjust <[ent]> send_update_packets
     - if <[gather_before_frames]||false>:
       - define lerp_animation.contains_before_frames true
       - flag <[root_entity]> pmodels_animation_to_interpolate:<[lerp_animation]||<map>>
