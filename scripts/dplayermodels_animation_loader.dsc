@@ -13,29 +13,34 @@ pmodels_load_bbmodel:
     - flag server pmodels_data.model_player_model_template_slim:!
     - flag server pmodels_data.animations_player_model_template_norm:!
     - flag server pmodels_data.animations_player_model_template_slim:!
-    # ============== Animation Gathering ===============
+    # ============== Startup ===============
     - define animation_files <util.list_files[data/pmodels/animations]||null>
+    - define pack_root data/pmodels/denizen_player_models_pack
+    - define item_validate <item[<script[pmodel_config].data_key[config].get[item]>]||null>
+    - define override_item_filepath <[pack_root]>/assets/minecraft/models/item/<script[pmodel_config].data_key[config].get[item]>.json
+    - define scale_factor <element[0.25].div[4.0]>
+    # =============== Pack validation ===============
+    - if !<util.has_file[<[pack_root]>/pack.mcmeta]>:
+        - define pack_version 13
+        - ~filewrite path:<[pack_root]>/pack.mcmeta data:<map.with[pack].as[<map[pack_format=<[pack_version]>;description=denizen_player_models_pack]>].to_json[native_types=true;indent=4].utf8_encode>
+        - ~filewrite path:<[pack_root]>/pack.png data:<proc[pmodels_denizen_logo_proc].base64_to_binary>
+    - if <[item_validate]> == null:
+        - debug error "[Denizen Player Models] Warning: The item specified in the config is an invalid item external bones will not generate"
     - if <[animation_files]> == null:
-      - debug error "[Denizen Player Models] Could not find animations folder in data/pmodels"
+        - debug error "[Denizen Player Models] Could not find animations folder in data/pmodels"
     - else if <[animation_files].is_empty>:
-      - debug error "[Denizen Player Models] Could not find player model animations in data/pmodels/animations"
+        - debug error "[Denizen Player Models] Could not find player model animations in data/pmodels/animations"
     - else:
+      # ============== Animation loading ===========
       - foreach <[animation_files]> as:anim_file_raw:
         - if <[anim_file_raw].ends_with[.bbmodel]>:
             - define animation_file <[anim_file_raw].replace[.bbmodel].with[<empty>]>
         - else:
             - foreach next
         # =============== Prep ===============
-        - define pack_root data/pmodels/denizen_player_models_pack
         - define models_root <[pack_root]>/assets/minecraft/models/item/pmodels/<[animation_file]>
         - define textures_root <[pack_root]>/assets/minecraft/textures/pmodels/<[animation_file]>
-        - define item_validate <item[<script[pmodel_config].data_key[config].get[item]>]||null>
-        - if <[item_validate]> == null:
-          - debug error "[Denizen Player Models] Warning: The item specified in the config is an invalid item external bones will not generate"
-          - stop
-        - define override_item_filepath <[pack_root]>/assets/minecraft/models/item/<script[pmodel_config].data_key[config].get[item]>.json
         - define file data/pmodels/animations/<[animation_file]>.bbmodel
-        - define scale_factor <element[0.25].div[4.0]>
         - define mc_texture_data <map>
         - flag server pmodels_data.temp_<[animation_file]>:!
         # =============== BBModel loading and validation ===============
@@ -55,18 +60,14 @@ pmodels_load_bbmodel:
         - if !<[data.elements].exists>:
             - debug error "[Denizen Player Models] Can't load bbmodel for '<[animation_file]>' - file has no elements?"
             - stop
-        # =============== Pack validation ===============
-        - if !<util.has_file[<[pack_root]>/pack.mcmeta]>:
-            - define pack_version 13
-            - ~filewrite path:data/pmodels/external_bones_res_pack/pack.mcmeta data:<map.with[pack].as[<map[pack_format=<[pack_version]>;description=denizen_player_models_pack]>].to_json[native_types=true;indent=4].utf8_encode>
-            - ~filewrite path:data/pmodels/external_bones_res_pack/pack.png data:<proc[pmodels_denizen_logo_proc].base64_to_binary>
         # =============== Elements loading ===============
-        #Reason for loading elements before is to skip the player model texture
+        - define texture_exclude_id null
+        # Reason for loading elements before is to skip the player model texture
         - foreach <[data.elements]> as:element:
             - if <[element.type]> != cube:
                 - foreach next
             - define name <[element.name]>
-            #Excluded player model texture id
+            # Excluded player model texture id
             - choose <[name]>:
                 - case skin:
                     - define texture_exclude_id <[element.faces.north.texture]>
@@ -90,12 +91,10 @@ pmodels_load_bbmodel:
             - if !<[raw_source].starts_with[data:image/png;base64,]>:
                 - debug error "Can't load bbmodel for '<[animation_file]>': invalid texture source data."
                 - stop
-            - define texture_exclude_id <[texture_exclude_id]||null>
             #If the texture equals the excluded texture skip it
-            - if <[texture_exclude_id]> != null:
-                - if <[tex_id]> == <[texture_exclude_id]>:
-                    - define tex_id:++
-                    - foreach next
+            - if <[texture_exclude_id]> != null && <[tex_id]> == <[tex_id]> == <[texture_exclude_id]>:
+                - define tex_id:++
+                - foreach next
             - define texture_output_path <[textures_root]>/<[texname]>.png
             - if <[item_validate]> != null:
               - ~filewrite path:<[texture_output_path]> data:<[raw_source].after[,].base64_to_binary>
@@ -119,11 +118,11 @@ pmodels_load_bbmodel:
         # =============== Animations loading ===============
         - foreach <[data.animations]||<list>> as:animation:
             - define anim_count:++
+            - if !<server.has_flag[pmodels_data.temp_<[animation_file]>.raw_outlines]>:
+              - foreach next
             - define animation_list.<[animation.name]>.loop <[animation.loop]>
             - define animation_list.<[animation.name]>.length <[animation.length]>
             - define animator_data <[animation.animators]||<map>>
-            - if !<server.has_flag[pmodels_data.temp_<[animation_file]>.raw_outlines]>:
-              - foreach next
             - foreach <server.flag[pmodels_data.temp_<[animation_file]>.raw_outlines]> key:o_uuid as:outline_data:
               - define animator <[animator_data.<[o_uuid]>]||null>
               - if <[animator]> == null:
@@ -143,7 +142,7 @@ pmodels_load_bbmodel:
                 - foreach position|rotation|scale as:channel:
                   - if <[animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.<[channel]>].exists>:
                     - define animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.<[channel]> <[animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.<[channel]>].sort_by_value[get[time]]>
-        # =============== Atlas gen =============== (Sourced from DModels)
+        # =============== Atlas gen ===============
         - define atlas_file <[pack_root]>/assets/minecraft/atlases/blocks.json
         - waituntil rate:1t max:15s !<server.has_flag[pmodels_temp_atlas_handling]>
         - if <server.has_flag[pmodels_temp_atlas_file]>:
@@ -255,15 +254,6 @@ pmodels_load_bbmodel:
     - if <[norm_data]> == null || <[slim_data]> == null || <[template_data]> == null:
       - debug error "Could not find templates for player models in config"
       - stop
-    # TODO: Remove euler to quaternion as every rotation is identity for template
-    - foreach <[norm_data.models]> key:model_key as:model_data:
-        - define rot <[model_data.rotation].split[,]>
-        - define quaternion_rot <proc[pmodels_quaternion_from_euler].context[<[rot].get[1]>|<[rot].get[2]>|<[rot].get[3]>]>
-        - define norm_data.models.<[model_key]>.rotation:<[quaternion_rot]>
-    - foreach <[slim_data.models]> key:model_key as:model_data:
-        - define rot <[model_data.rotation].split[,]>
-        - define quaternion_rot <proc[pmodels_quaternion_from_euler].context[<[rot].get[1]>|<[rot].get[2]>|<[rot].get[3]>]>
-        - define slim_data.models.<[model_key]>.rotation:<[quaternion_rot]>
     - flag server pmodels_data.template_data.norm:<[norm_data]>
     - flag server pmodels_data.template_data.slim:<[slim_data]>
     - define norm_models <[norm_data.models]>
