@@ -92,7 +92,7 @@ pmodels_load_bbmodel:
                 - debug error "Can't load bbmodel for '<[animation_file]>': invalid texture source data."
                 - stop
             #If the texture equals the excluded texture skip it
-            - if <[texture_exclude_id]> != null && <[tex_id]> == <[tex_id]> == <[texture_exclude_id]>:
+            - if <[texture_exclude_id]> != null && <[tex_id]> == <[texture_exclude_id]>:
                 - define tex_id:++
                 - foreach next
             - define texture_output_path <[textures_root]>/<[texname]>.png
@@ -236,6 +236,8 @@ pmodels_load_bbmodel:
             - define find <script[pmodels_excluded_bones].data_key[bones].find[<[outline.name]>]>
             - if <[find]> == -1:
                 - define external_count:++
+                - define rotation <[outline.rotation].split[,]>
+                - define outline.rotation <proc[dmodels_quaternion_from_euler].context[<[rotation].parse[to_radians]>]>
                 ## This sets the actual live usage flag data for external bones should they exist
                 - flag server pmodels_data.model_player_model_template_norm.<[outline.uuid]>:<[outline]>
                 - flag server pmodels_data.model_player_model_template_slim.<[outline.uuid]>:<[outline]>
