@@ -87,14 +87,12 @@ pmodels_load_bbmodel:
             - define texname <[texture.name]>
             - if <[texname].ends_with[.png]>:
                 - define texname <[texname].before[.png]>
+            - if <[texname]> == steve_template:
+                - foreach next
             - define raw_source <[texture.source]||>
             - if !<[raw_source].starts_with[data:image/png;base64,]>:
                 - debug error "Can't load bbmodel for '<[animation_file]>': invalid texture source data."
                 - stop
-            #If the texture equals the excluded texture skip it
-            - if <[texture_exclude_id]> != null && <[tex_id]> == <[texture_exclude_id]>:
-                - define tex_id:++
-                - foreach next
             - define texture_output_path <[textures_root]>/<[texname]>.png
             - if <[item_validate]> != null:
               - ~filewrite path:<[texture_output_path]> data:<[raw_source].after[,].base64_to_binary>
@@ -138,7 +136,7 @@ pmodels_load_bbmodel:
                     - else:
                         - define anim_map.data <[data_points.x].trim>,<[data_points.y].trim>,<[data_points.z].trim>
                     - define animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.<[channel]>:->:<[anim_map]>
-                #Time sort
+                # Time sort
                 - foreach position|rotation|scale as:channel:
                   - if <[animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.<[channel]>].exists>:
                     - define animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.<[channel]> <[animation_list.<[animation.name]>.animators.<[o_uuid]>.frames.<[channel]>].sort_by_value[get[time]]>
@@ -207,12 +205,16 @@ pmodels_load_bbmodel:
                         - define jsonelement.faces.<[faceid]> <[face].proc[pmodels_facefix].context[<[resolution]>]>
                     - define model_json.elements:->:<[jsonelement]>
             - define outline.children:!
+            # Check for player model bones if they are there do not generate the item file
+            - define find <script[pmodels_excluded_bones].data_key[bones].find[<[outline.name]>]>
             - if <[child_count]> > 0:
                 #### Item override building
-                # Check for player model bones if they are there do not generate the item file
-                - define find <script[pmodels_excluded_bones].data_key[bones].find[<[outline.name]>]>
                 - if <[find]> == -1:
-                    - definemap json_group name:<[outline.name]> color:0 children:<util.list_numbers[from=0;to=<[child_count]>]> origin:<[outline_origin].mul[<[scale_factor]>].xyz.split[,]>
+                    - definemap json_group:
+                        name: <[outline.name]>
+                        color: 0
+                        children: <util.list_numbers[from=0;to=<[child_count]>]>
+                        origin: <[outline_origin].mul[<[scale_factor]>].xyz.split[,]>
                     - define model_json.groups <list[<[json_group]>]>
                     - define model_json.display.head.translation <list[32|32|32]>
                     - define model_json.display.head.scale <list[4|4|4]>
@@ -233,14 +235,13 @@ pmodels_load_bbmodel:
                     # Identifier for external bone
                     - define outline.type external
             # Exclude player model bones
-            - define find <script[pmodels_excluded_bones].data_key[bones].find[<[outline.name]>]>
             - if <[find]> == -1:
                 - define external_count:++
-                - define rotation <[outline.rotation].split[,]>
-                - define outline.rotation <proc[dmodels_quaternion_from_euler].context[<[rotation].parse[to_radians]>]>
-                ## This sets the actual live usage flag data for external bones should they exist
-                - flag server pmodels_data.model_player_model_template_norm.<[outline.uuid]>:<[outline]>
-                - flag server pmodels_data.model_player_model_template_slim.<[outline.uuid]>:<[outline]>
+            ## Sets actual live usage data
+            - define rotation <[outline.rotation].split[,]>
+            - define outline.rotation <proc[pmodels_quaternion_from_euler].context[<[rotation].parse[to_radians]>]>
+            - flag server pmodels_data.model_player_model_template_norm.<[outline.uuid]>:<[outline]>
+            - flag server pmodels_data.model_player_model_template_slim.<[outline.uuid]>:<[outline]>
         - if <[item_validate]> != null && <[overrides_changed]>:
             - ~filewrite path:<[override_item_filepath]> data:<[override_item_data].to_json[native_types=true;indent=4].utf8_encode>
         # Final clear of temp data
@@ -260,16 +261,20 @@ pmodels_load_bbmodel:
     - flag server pmodels_data.template_data.slim:<[slim_data]>
     - define norm_models <[norm_data.models]>
     - define slim_models <[slim_data.models]>
+    - define norm_server_data <server.flag[pmodels_data.model_player_model_template_norm]>
+    - define slim_server_data <server.flag[pmodels_data.model_player_model_template_slim]>
     - define tex_load_order player_root|head|hip|waist|chest|right_arm|right_forearm|left_arm|left_forearm|right_leg|right_foreleg|left_leg|left_foreleg
     - foreach <[tex_load_order]> as:tex_name:
       - foreach <[norm_models]> key:uuid as:model:
         - if <[model.name]> == <[tex_name]>:
-          - define norm_models.<[uuid]>.type default
-          - flag server pmodels_data.model_player_model_template_norm.<[uuid]>:<[norm_models.<[uuid]>]>
+          - define data <[norm_server_data.<[uuid]>]>
+          - define data.type default
+          - flag server pmodels_data.model_player_model_template_norm.<[uuid]>:<[data]>
       - foreach <[slim_models]> key:uuid as:model:
         - if <[model.name]> == <[tex_name]>:
-          - define slim_models.<[uuid]>.type default
-          - flag server pmodels_data.model_player_model_template_slim.<[uuid]>:<[slim_models.<[uuid]>]>
+          - define data <[slim_server_data.<[uuid]>]>
+          - define data.type default
+          - flag server pmodels_data.model_player_model_template_slim.<[uuid]>:<[data]>
     - debug log "[Denizen Player Models] Loaded <[anim_count]||0> animations."
     - if <[external_count].exists>:
       - debug log "[Denizen Player Models] <[external_count]> External bones have been loaded."
