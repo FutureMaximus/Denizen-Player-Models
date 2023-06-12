@@ -35,12 +35,12 @@ pmodels_spawn_model:
       - default:
         - debug error "[Denizen Player Models] <red>Something went wrong in pmodels_spawn_model invalid skin type."
         - stop
-    - if !<server.has_flag[pmodels_data.model_<[model_name]>]>:
+    - if !<server.has_flag[pmodels_data.model_<[model_name]>.default]>:
         - debug error "[Denizen Player Models] <red>Cannot spawn model <[model_name]>, model not loaded"
         - stop
     - define center <[location].with_pitch[0].above[0.5]>
-    - define global_rot <[rotation]||<quaternion[identity]>>
-    - define global_scale <[scale]||<location[1,1,1]>>
+    - define global_rot <quaternion[<[rotation]||identity>]>
+    - define global_scale <location[<[scale]||1,1,1>]>
     - define yaw_quaternion <location[0,1,0].to_axis_angle_quaternion[<[location].yaw.add[180].to_radians.mul[-1]>]>
     - define orientation <[yaw_quaternion].mul[<[global_rot]>]>
     - if <[fake_to].exists>:
@@ -56,7 +56,7 @@ pmodels_spawn_model:
     - flag <[root_entity]> pmodel_yaw:<[center].yaw>
     - flag <[root_entity]> pmodel_skin_type:<[skin_type]>
     - define skull_skin <[player].skull_skin>
-    - foreach <server.flag[pmodels_data.model_<[model_name]>]> key:id as:part:
+    - foreach <server.flag[pmodels_data.model_<[model_name]>.default]> key:id as:part:
         - if !<[part.item].exists>:
             - foreach next
         #If the part is external skip it and store it as data to use later
@@ -99,7 +99,7 @@ pmodels_reset_model_position:
     debug: false
     definitions: root_entity[(EntityTag) - The root entity of the player model]
     script:
-    - define model_data <server.flag[pmodels_data.model_<[root_entity].flag[pmodel_model_id]>]||null>
+    - define model_data <server.flag[pmodels_data.model_<[root_entity].flag[pmodel_model_id]>.default]||null>
     - if <[model_data]> == null:
         - debug error "<&[Error]> Could not update model for root entity <[root_entity]> as it does not exist."
         - stop
@@ -114,7 +114,7 @@ pmodels_reset_model_position:
         - define parent_id <[part.parent]>
         - define parent_pos <location[<[parentage.<[parent_id]>.position]||0,0,0>]>
         - define parent_rot <quaternion[<[parentage.<[parent_id]>.rotation]||identity>]>
-        - define parent_raw_offset <[model_data.<[parent_id]>.origin]||0,0,0>
+        - define parent_raw_offset <location[<[model_data.<[parent_id]>.origin]||0,0,0>]>
         - define rel_offset <location[<[part.origin]>].sub[<[parent_raw_offset]>]>
         - define orientation_parent <[orientation].mul[<[parent_rot]>]>
         - define rot_offset <[orientation_parent].transform[<[rel_offset]>]>
@@ -160,7 +160,7 @@ pmodels_remove_external_parts:
 pmodels_set_yaw:
     type: task
     debug: false
-    definitions: root_entity[The root EntityTag from 'pmodels_spawn_model'] | yaw[Number, 0 for default] | update[If not specified as 'false', will immediately update the model's position]
+    definitions: root_entity[The root EntityTag from 'pmodels_spawn_model']|yaw[Number, 0 for default]|update[If not specified as 'false', will immediately update the model's position]
     description: Sets the yaw of the model.
     script:
     - flag <[root_entity]> pmodel_yaw:<[yaw]>
@@ -173,7 +173,7 @@ pmodels_change_skin:
     - Changes the skin of the player model to the given player or npc's skin
     - Note that this can take some time to process due to skin lookup
     debug: false
-    definitions: player[(PlayerTag or NPCTag) - The player or npc skin the player model will change to] | root_entity[(EntityTag) - The root entity of the player model]
+    definitions: player[(PlayerTag or NPCTag) - The player or npc skin the player model will change to]|root_entity[(EntityTag) - The root entity of the player model]
     script:
     - if !<[player].is_npc||false> && !<[player].is_player||false>:
         - debug error "[Denizen Player Models] Must specify a valid player or npc to change the player model skin."
