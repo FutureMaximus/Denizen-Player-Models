@@ -20,6 +20,7 @@ pmodels_animate:
       - define is_animating true
     - else:
       - define is_animating false
+      - flag <[root_entity]> pmodels_is_animating:true
     # Lerp in
     - if <duration[<[lerp_in]||0>].in_seconds> == 0:
       - flag <[root_entity]> pmodels_lerp:false
@@ -36,8 +37,6 @@ pmodels_animate:
         - waituntil !<[root_entity].has_flag[pmodels_get_before_lerp]> max:1s
         - if <[root_entity].has_flag[pmodels_get_before_lerp]>:
           - stop
-    - if !<[is_animating]>:
-      - flag <[root_entity]> pmodels_is_animating:true
     - flag <[root_entity]> pmodels_animation_id:<[animation]>
     - flag <[root_entity]> pmodels_anim_time:0
     # Spawn external bones if they exist in the animation
@@ -47,7 +46,7 @@ pmodels_animate:
         - define fake_to <[root_entity].flag[fake_to]>
       - define center <[root_entity].location.with_pitch[0].above[0.5]>
       - define yaw_quaternion <location[0,1,0].to_axis_angle_quaternion[<[center].yaw.add[180].to_radians.mul[-1]>]>
-      - define orientation <[yaw_quaternion].mul[<[root_entity].flag[pmodels_global_rotation]>]>
+      - define orientation <[yaw_quaternion].mul[<[root_entity].flag[pmodel_global_rotation]>]>
       - foreach <[root_entity].flag[external_parts]> key:id as:part:
         # Look for external bones in the animation
         - if !<[animation_data.animators.<[id]>].exists> || !<[part.item].exists>:
@@ -64,6 +63,7 @@ pmodels_animate:
         - else:
           - spawn <[spawn_display]> <[center]> persistent save:spawned
           - define spawned <entry[spawned].spawned_entity>
+        - flag <[spawned]> pmodel_def_part_id:<[id]>
         - flag <[spawned]> pmodel_def_pose:<[pose]>
         - flag <[spawned]> pmodel_def_name:<[part.name]>
         - flag <[spawned]> pmodel_def_uuid:<[id]>
@@ -87,7 +87,7 @@ pmodels_animation_lerp_frames:
     script:
     - define lerp_in <duration[<[lerp_in]>].in_seconds>
     - foreach <[animators]> key:part_id as:animator:
-      - foreach position|rotation as:channel:
+      - foreach position|rotation|scale as:channel:
         - define relevant_frames <[animator.frames.<[channel]>]||null>
         - define first_frame <[relevant_frames].first||null>
         - if <[first_frame]> == null || <[relevant_frames]> == null:
@@ -130,9 +130,9 @@ pmodels_move_to_frame:
     type: task
     description: Moves the player model to a frame in the animation
     debug: false
-    definitions: root_entity[(EntityTag) - The root entity of the player model] | animation[(ElementTag) - The animation the player model will move to] | timespot[(Ticks) - The timespot the player model will move to]
+    definitions: root_entity[(EntityTag) - The root entity of the player model]|animation[(ElementTag) - The animation the player model will move to]|timespot[(Ticks) - The timespot the player model will move to]
     script:
-    - define model_data <server.flag[pmodels_data.model_<[root_entity].flag[pmodel_model_id]>]||null>
+    - define model_data <server.flag[pmodels_data.model_<[root_entity].flag[pmodel_model_id]>.<[animation]>]||null>
     - if <[model_data]> == null:
       - stop
     - define lerp_in <[root_entity].flag[pmodels_lerp]||false>
@@ -250,37 +250,6 @@ pmodels_move_to_frame:
       - flag <[root_entity]> pmodels_animation_to_interpolate:<[lerp_animation]||<map>>
       - flag <[root_entity]> pmodels_get_before_lerp:!
 
-pmodels_interpolation_data:
-    type: procedure
-    description: Returns the interpolated data for a given time spot
-    debug: false
-    definitions: relevant_frames[(MapTag) - The frames that are relevant to the current channel] | timespot[(Tick) - The timespot of the animation] | loop[(ElementTag) - The loop state of the animation]
-    script:
-    - define before_frame <[relevant_frames].filter[get[time].is_less_than_or_equal_to[<[timespot]>]].last||null>
-    - if <[before_frame]> == null:
-      - determine 0,0,0
-    - define after_frame <[relevant_frames].filter[get[time].is_more_than[<[before_frame.time]>]].first||<[before_frame]>>
-    - define b_time <[before_frame.time]>
-    - define time_range <[after_frame.time].sub[<[b_time]>]>
-    - if <[time_range]> == 0:
-      - define time_percent 0
-    - else:
-      - define time_percent <[timespot].sub[<[b_time]>].div[<[time_range]>]>
-    - choose <[before_frame.interpolation]>:
-        - case catmullrom:
-          - define before_extra <[relevant_frames].filter[get[time].is_less_than[<[before_frame.time]>]].last||null>
-          - if <[before_extra]> == null:
-              - define before_extra <[loop].equals[loop].if_true[<[relevant_frames].last>].if_false[<[before_frame]>]>
-          - define after_extra <[relevant_frames].filter[get[time].is_more_than[<[after_frame.time]>]].first||null>
-          - if <[after_extra]> == null:
-              - define after_extra <[loop].equals[loop].if_true[<[relevant_frames].first>].if_false[<[after_frame]>]>
-          - define data <[before_extra.data].as[location].proc[pmodels_catmullrom_proc].context[<[before_frame.data].as[location]>|<[after_frame.data].as[location]>|<[after_extra.data].as[location]>|<[time_percent]>].xyz>
-        - case linear:
-          - define data <[after_frame.data].as[location].sub[<[before_frame.data]>].mul[<[time_percent]>].add[<[before_frame.data]>].xyz>
-        - case step:
-          - define data <[before_frame.data]>
-    - determine <[data]||0,0,0>
-
 pmodels_catmullrom_get_t:
     type: procedure
     debug: false
@@ -294,7 +263,7 @@ pmodels_catmullrom_proc:
     type: procedure
     description: Catmullrom interpolation for animations
     debug: false
-    definitions: p0[Before Extra Frame] | p1[Before Frame] | p2[After Frame] | p3[After Extra Frame] | t[Time Percent]
+    definitions: p0[Before Extra Frame]|p1[Before Frame]|p2[After Frame]|p3[After Extra Frame]|t[Time Percent]
     script:
     # Zero distances are impossible to calculate
     - if <[p2].sub[<[p1]>].vector_length> < 0.01:
