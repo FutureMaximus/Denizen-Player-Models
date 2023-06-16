@@ -223,7 +223,7 @@ pmodels_load_bbmodel:
                     - define model_json.elements:->:<[jsonelement]>
             - define outline.children:!
             # Check for player model bones if they are there do not generate the item file
-            - define find <script[pmodels_excluded_bones].data_key[bones].find[<[outline.name]>]>
+            - define find <[find_bone].find[<[outline.name]>]>
             - if <[child_count]> > 0 && <[find]> == -1:
                 #### Item override building
                 - definemap json_group:
@@ -272,11 +272,18 @@ pmodels_load_bbmodel:
                     - define rotation <[outline.rotation].split[,]>
                     - define outline.rotation <proc[pmodels_quaternion_from_euler].context[<[rotation].parse[to_radians]>]>
                     - define temp_default_data.slim.<[uuid]>:<[outline]>
-        - foreach <[tex_load_order]||<list>> as:tex_name:
-            - foreach <[temp_default_data.classic]||<map>> key:uuid as:model:
+        - if <[item_validate]> != null && <[overrides_changed]>:
+            - ~filewrite path:<[override_item_filepath]> data:<[override_item_data].to_json[native_types=true;indent=4].utf8_encode>
+        # Final clear of temp data
+        - flag server pmodels_data.temp_<[animation_file]>:!
+        - if !<[temp_default_data].exists>:
+            - foreach next
+        # We load these first to ensure correct spawn order
+        - foreach <[tex_load_order]> as:tex_name:
+            - foreach <[temp_default_data.classic]> key:uuid as:model:
                 - if <[tex_name]> == <[model.name]>:
                     - define pmodels_data.model_player_model_template_norm.<[animation_file]>.<[uuid]>:<[model]>
-            - foreach <[temp_default_data.slim]||<map>> key:uuid as:model:
+            - foreach <[temp_default_data.slim]> key:uuid as:model:
                 - if <[tex_name]> == <[model.name]>:
                     - define pmodels_data.model_player_model_template_slim.<[animation_file]>.<[uuid]>:<[model]>
         - define external_bones_classic <[temp_default_data.classic].filter_tag[<[find_bone].find[<[filter_value.name]>].equals[-1]>]>
@@ -285,10 +292,6 @@ pmodels_load_bbmodel:
             - define pmodels_data.model_player_model_template_norm.<[animation_file]>.<[uuid]>:<[model]>
         - foreach <[external_bones_slim]> key:uuid as:model:
             - define pmodels_data.model_player_model_template_slim.<[animation_file]>.<[uuid]>:<[model]>
-        - if <[item_validate]> != null && <[overrides_changed]>:
-            - ~filewrite path:<[override_item_filepath]> data:<[override_item_data].to_json[native_types=true;indent=4].utf8_encode>
-        # Final clear of temp data
-        - flag server pmodels_data.temp_<[animation_file]>:!
     # Set the animations
     - if <[animation_list].any||false>:
         - flag server pmodels_data.animations_player_model_template_norm:<[animation_list]>
