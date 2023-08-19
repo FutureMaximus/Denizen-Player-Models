@@ -1,5 +1,4 @@
-#This is required to animate the player models.
-#====================================== Animating ==========================================================
+#====================================== Animating ============================================
 
 pmodels_animate:
     type: task
@@ -16,6 +15,7 @@ pmodels_animate:
     - if <[animation_data]> == null:
         - debug error "[Denizen Player Models] <red>Cannot animate entity <[root_entity].uuid> due to model <[root_entity].flag[pmodel_model_id]> not having an animation named <[animation]>."
         - stop
+    # Used for correct model data based on the animation
     - if <[root_entity].flag[pmodels_is_animating]||false>:
       - define is_animating true
     - else:
@@ -132,9 +132,7 @@ pmodels_move_to_frame:
     debug: false
     definitions: root_entity[(EntityTag) - The root entity of the player model]|animation[(ElementTag) - The animation the player model will move to]|timespot[(Ticks) - The timespot the player model will move to]
     script:
-    - define model_data <server.flag[pmodels_data.model_<[root_entity].flag[pmodel_model_id]>.<[animation]>]||null>
-    - if <[model_data]> == null:
-      - stop
+    - define model_data <server.flag[pmodels_data.model_<[root_entity].flag[pmodel_model_id]>]||null>
     - define lerp_in <[root_entity].flag[pmodels_lerp]||false>
     - if <[lerp_in].is_truthy>:
       - define lerp_animation <[root_entity].flag[pmodels_animation_to_interpolate]>
@@ -236,15 +234,6 @@ pmodels_move_to_frame:
         - adjust <[ent]> translation:<[new_pos].div[16]>
         - adjust <[ent]> left_rotation:<[orientation].mul[<[new_rot]>]>
         - adjust <[ent]> scale:<[new_scale].proc[pmodels_mul_vecs].context[<[global_scale]>]>
-        #- choose <[ent].flag[pmodel_def_type]>:
-        #  - case default:
-        #    - define center <[root_entity].location.with_pitch[0].below[1.379].relative[0.32,0,0]>
-        #    - teleport <[ent]> <[center].add[<[data.position].div[15.98].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
-         #   - adjust <[ent]> armor_pose:[right_arm=<[pose]>]
-          #- case external:
-          #  - define center <[root_entity].location.with_pitch[0].below[0.7]>
-          #  - teleport <[ent]> <[center].add[<[data.position].div[15.98].rotate_around_y[<[yaw_mod].mul[-1]>]>]>
-          #  - adjust <[ent]> armor_pose:[head=<[pose]>]
     - if <[gather_before_frames]||false>:
       - define lerp_animation.contains_before_frames true
       - flag <[root_entity]> pmodels_animation_to_interpolate:<[lerp_animation]||<map>>
