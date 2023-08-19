@@ -30,7 +30,7 @@ pmodels_load_bbmodel:
     - define norm_models <[norm_data.models]>
     - define slim_models <[slim_data.models]>
     - define find_bone <script[pmodels_excluded_bones].data_key[bones]>
-    - define tex_load_order player_root|head|hip|waist|chest|right_arm|right_forearm|left_arm|left_forearm|right_leg|right_foreleg|left_leg|left_foreleg
+    - define tex_load_order <proc[pmodels_tex_load_order]>
     # =============== Pack validation ===============
     - if !<util.has_file[<[pack_root]>/pack.mcmeta]>:
         - define pack_version 13
@@ -134,7 +134,6 @@ pmodels_load_bbmodel:
               - foreach next
             - define animation_list.<[animation.name]>.loop <[animation.loop]>
             - define animation_list.<[animation.name]>.length <[animation.length]>
-            - define animation_list.<[animation.name]>.parent_path <[animation_file]>
             - define animator_data <[animation.animators]||<map>>
             - foreach <server.flag[pmodels_data.temp_<[animation_file]>.raw_outlines]> key:o_uuid as:outline_data:
               - define animator <[animator_data.<[o_uuid]>]||null>
@@ -251,66 +250,54 @@ pmodels_load_bbmodel:
                 # Identifier for external bone
                 - define outline.type external
             ## Sets actual live usage data
-            - if <[find]> == -1:
-                - define external_count:++
-                - define rotation <[outline.rotation].split[,]>
-                - define outline.rotation <proc[pmodels_quaternion_from_euler].context[<[rotation].parse[to_radians]>]>
-                - define temp_default_data.classic.<[outline.uuid]>:<[outline]>
-                - define temp_default_data.slim.<[outline.uuid]>:<[outline]>
-                - foreach next
-            - foreach <[norm_models]> key:uuid as:model:
-                - if <[outline.uuid]> == <[uuid]>:
-                    - define outline.type default
-                    - define outline.origin <[model.origin]>
-                    - define rotation <[outline.rotation].split[,]>
-                    - define outline.rotation <proc[pmodels_quaternion_from_euler].context[<[rotation].parse[to_radians]>]>
-                    - define temp_default_data.classic.<[uuid]>:<[outline]>
-            - foreach <[slim_models]> key:uuid as:model:
-                - if <[outline.uuid]> == <[uuid]>:
-                    - define outline.type default
-                    - define outline.origin <[model.origin]>
-                    - define rotation <[outline.rotation].split[,]>
-                    - define outline.rotation <proc[pmodels_quaternion_from_euler].context[<[rotation].parse[to_radians]>]>
-                    - define temp_default_data.slim.<[uuid]>:<[outline]>
+            #- if <[find]> == -1:
+            #    - define external_count:++
+             #   - define rotation <[outline.rotation].split[,]>
+             #   - define outline.rotation <proc[pmodels_quaternion_from_euler].context[<[rotation].parse[to_radians]>]>
+              #  - define temp_default_data.classic.<[outline.uuid]>:<[outline]>
+            #    - define temp_default_data.slim.<[outline.uuid]>:<[outline]>
+            #    - foreach next
+            #- foreach <[norm_models]> key:uuid as:model:
+            #    - if <[outline.uuid]> == <[uuid]>:
+            #        - define outline.type default
+            #        - define outline.origin <[model.origin]>
+             #       - define temp_default_data.classic.<[uuid]>:<[outline]>
+            #- foreach <[slim_models]> key:uuid as:model:
+            #    - if <[outline.uuid]> == <[uuid]>:
+            #        - define outline.type default
+            #        - define outline.origin <[model.origin]>
+            #        - define temp_default_data.slim.<[uuid]>:<[outline]>
         - if <[item_validate]> != null && <[overrides_changed]>:
             - ~filewrite path:<[override_item_filepath]> data:<[override_item_data].to_json[native_types=true;indent=4].utf8_encode>
         # Final clear of temp data
         - flag server pmodels_data.temp_<[animation_file]>:!
-        - if !<[temp_default_data].exists>:
-            - foreach next
-        # We load these first to ensure correct spawn order
-        - foreach <[tex_load_order]> as:tex_name:
-            - foreach <[temp_default_data.classic]> key:uuid as:model:
-                - if <[tex_name]> == <[model.name]>:
-                    - define pmodels_data.model_player_model_template_norm.<[animation_file]>.<[uuid]>:<[model]>
-            - foreach <[temp_default_data.slim]> key:uuid as:model:
-                - if <[tex_name]> == <[model.name]>:
-                    - define pmodels_data.model_player_model_template_slim.<[animation_file]>.<[uuid]>:<[model]>
-        - define external_bones_classic <[temp_default_data.classic].filter_tag[<[find_bone].find[<[filter_value.name]>].equals[-1]>]>
-        - define external_bones_slim <[temp_default_data.slim].filter_tag[<[find_bone].find[<[filter_value.name]>].equals[-1]>]>
-        - foreach <[external_bones_classic]> key:uuid as:model:
-            - define pmodels_data.model_player_model_template_norm.<[animation_file]>.<[uuid]>:<[model]>
-        - foreach <[external_bones_slim]> key:uuid as:model:
-            - define pmodels_data.model_player_model_template_slim.<[animation_file]>.<[uuid]>:<[model]>
+        #- if !<[temp_default_data].exists>:
+        #    - foreach next
+        #- define external_bones_classic <[temp_default_data.classic].filter_tag[<[find_bone].find[<[filter_value.name]>].equals[-1]>]>
+        #- define external_bones_slim <[temp_default_data.slim].filter_tag[<[find_bone].find[<[filter_value.name]>].equals[-1]>]>
+        #- foreach <[external_bones_classic]> key:uuid as:model:
+        #    - define pmodels_data.model_player_model_template_norm.<[animation_file]>.<[uuid]>:<[model]>
+        #- foreach <[external_bones_slim]> key:uuid as:model:
+        #    - define pmodels_data.model_player_model_template_slim.<[animation_file]>.<[uuid]>:<[model]>
     # Set the animations
     - if <[animation_list].any||false>:
-        - flag server pmodels_data.animations_player_model_template_norm:<[animation_list]>
-        - flag server pmodels_data.animations_player_model_template_slim:<[animation_list]>
+        - define pmodels_data.animations_player_model_template_norm <[animation_list]>
+        - define pmodels_data.animations_player_model_template_slim <[animation_list]>
     #= Default template loading
     - foreach <[tex_load_order]> as:tex_name:
         - foreach <[norm_models]> key:uuid as:model:
             - if <[tex_name]> == <[model.name]>:
                 - define model.type default
-                - define pmodels_data.model_player_model_template_norm.default.<[uuid]>:<[model]>
+                - define pmodels_data.model_player_model_template_norm.<[uuid]>:<[model]>
         - foreach <[slim_models]> key:uuid as:model:
             - if <[tex_name]> == <[model.name]>:
                 - define model.type default
-                - define pmodels_data.model_player_model_template_slim.default.<[uuid]>:<[model]>
+                - define pmodels_data.model_player_model_template_slim.<[uuid]>:<[model]>
     - if <[pmodels_data].any||false>:
         - flag server pmodels_data:<[pmodels_data]>
     - debug log "[Denizen Player Models] Loaded <[anim_count]||0> animations."
-    - if <[external_count].exists>:
-      - debug log "[Denizen Player Models] <[external_count]> External bones have been loaded."
+    #- if <[external_count].exists>:
+    #  - debug log "[Denizen Player Models] <[external_count]> External bones have been loaded."
     - determine <[anim_count]||0>
 
 pmodels_excluded_bones:
@@ -330,6 +317,12 @@ pmodels_excluded_bones:
     - right_foreleg
     - left_leg
     - left_foreleg
+
+pmodels_tex_load_order:
+    type: procedure
+    debug: false
+    script:
+    - determine <list[player_root|head|hip|waist|chest|right_arm|right_forearm|left_arm|left_forearm|right_leg|right_foreleg|left_leg|left_foreleg]>
 
 pmodels_facefix:
     type: procedure
