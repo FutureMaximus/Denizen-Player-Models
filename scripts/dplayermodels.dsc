@@ -11,35 +11,33 @@
 # @Contributors Max^, mcmonkey
 # @Special thanks to mcmonkey for creating dmodels and making this possible for everyone!
 # @date 2022/06/03
-# @updated 2022/12/28
+# @updated 2023/06/30
 # @denizen-build 1.2.6-b6609-DEV
-# @script-version 1.6 BETA
+# @script-version 2.0 BETA
 # @Github https://github.com/FutureMaximus/Denizen-Player-Models
 
-#=== Changelog for 1.7 ===
+#=== Changelog for 2.0 ===
 
-# - Implemented ability to lerp into animations
+# - Replaced armorstands with display entities
+# - Added scaling support
+# - Added global rotation support
+# - Updated shader to support 1.19.4
 
 #=========================
 
-## NOTICE: This will not work on Minecraft versions below 1.19.3 due to the resource pack changes and will not work with any other
-## rendertype_entity_translucent core shader files it must be the one provided by mccosmetics or here.
-## Tested Minecraft Version: 1.19.3
+## NOTICE: This will not work on Minecraft versions below 1.19.4 due to the resource pack changes and display entities only
+## existing on 1.19.4.
+
+## Tested Minecraft Version: 1.19.4
 
 ## Description:
 # Denizen Player Models allows you to take the texture of any player or npc and animate them with a model of the player!
-# For more control over the player models there is an API as well.
-# I plan on adding more features such as mobility tasks in the future.
 
 #================================ Information ==================================
 
-#Uses elements from dmodels by mcmonkey https://github.com/mcmonkeyprojects/DenizenModels.
+# Uses elements from dmodels by mcmonkey https://github.com/mcmonkeyprojects/DenizenModels.
 
-#For player emotes made by other people https://mcmodels.net/?product_cat=&post_type=product&s=Emote (Must be for the mccosmetics plugin not IA).
-
-#Denizen Player Models allows the use of player model animations useful for emotes or cutscenes as a per player showing task is available.
-
-#Compatible with the mccosmetics plugin
+# For player emotes made by other people https://mcmodels.net/?product_cat=&post_type=product&s=Emote (Must be for the mccosmetics plugin not IA).
 
 #=================================================================================
 
@@ -59,6 +57,9 @@
 #=================================================================================
 
 #=================== External Bones Usage ==================
+
+## NOTICE: External bones are no longer supported due to them being a pain to support but if enough people ask for it
+## then I will implement it.
 
 # Things to know:
 # - External bones must be in a single bbmodel file
@@ -132,80 +133,80 @@ pmodel_config:
         778fa89c-759a-8884-89d9-238c555d2dc1:
           name: player_root
           origin: 0,0,0
-          rotation: 0,0,0
+          rotation: 0,0,0,1
           parent: none
         9dc65952-10a9-876f-bd47-d6a7e9ec6183:
           item: player_head[custom_model_data=8]
           name: hip
-          origin: 0,11.25,0
-          rotation: 0,0,0
-          parent: 778fa89c-759a-8884-89d9-238c555d2dc1
-        7e8426f1-08b2-81a2-7703-cb76ff5e7003:
-          item: player_head[custom_model_data=9]
-          name: right_leg
-          origin: 1.875,11.25,0
-          rotation: 0,0,0
-          parent: 778fa89c-759a-8884-89d9-238c555d2dc1
-        5ef5d225-d5ae-6787-8838-b75ccb7a7a81:
-          item: player_head[custom_model_data=9]
-          name: left_leg
-          origin: -1.875,11.25,0
-          rotation: 0,0,0
+          origin: 0,6.4,0
+          rotation: 0,0,0,1
           parent: 778fa89c-759a-8884-89d9-238c555d2dc1
         e297aef6-7dfd-f100-2e7c-ab113699b922:
           item: player_head[custom_model_data=8]
           name: waist
-          origin: 0,15,0
-          rotation: 0,0,0
+          origin: 0,9.9,0
+          rotation: 0,0,0,1
           parent: 9dc65952-10a9-876f-bd47-d6a7e9ec6183
         a0c01522-9040-7533-fa11-f6a45d3d96ac:
           item: player_head[custom_model_data=8]
           name: chest
-          origin: 0,18.75,0
-          rotation: 0,0,0
+          origin: 0,13.5,0
+          rotation: 0,0,0,1
           parent: e297aef6-7dfd-f100-2e7c-ab113699b922
         34097e46-c233-c03c-d8b9-aee154c9946f:
           item: player_head[custom_model_data=1]
           name: head
-          origin: 0,22.5,0
-          rotation: 0,0,0
+          origin: 0,16.5,0
+          rotation: 0,0,0,1
           parent: a0c01522-9040-7533-fa11-f6a45d3d96ac
         bfc2f156-b48b-dd08-1b9e-777d8ada16b2:
           item: player_head[custom_model_data=2]
           name: right_arm
-          origin: 5,21,0
-          rotation: 0,0,0
+          origin: 5.5,14.5,0
+          rotation: 0,0,0,1
           parent: a0c01522-9040-7533-fa11-f6a45d3d96ac
         b3135254-0351-3462-2479-e6a3286c89ff:
           item: player_head[custom_model_data=3]
           name: left_arm
-          origin: -5,21,0
-          rotation: 0,0,0
+          origin: -5.5,14.5,0
+          rotation: 0,0,0,1
           parent: a0c01522-9040-7533-fa11-f6a45d3d96ac
         cf1618da-24d8-aab8-eebc-128815c02d35:
           item: player_head[custom_model_data=4]
           name: right_forearm
-          origin: 5.625,16.875,0
-          rotation: 0,0,0
+          origin: 5.5,11,0
+          rotation: 0,0,0,1
           parent: bfc2f156-b48b-dd08-1b9e-777d8ada16b2
         1a9070b5-b8b6-b955-9f31-54f9625f8f3d:
           item: player_head[custom_model_data=4]
           name: left_forearm
-          origin: -5.625,16.875,0
-          rotation: 0,0,0
+          origin: -5.5,11,0
+          rotation: 0,0,0,1
           parent: b3135254-0351-3462-2479-e6a3286c89ff
         c6d9e946-1d10-482d-14b1-0766027adba8:
           item: player_head[custom_model_data=9]
           name: right_foreleg
-          origin: 1.875,5.625,0
-          rotation: 0,0,0
+          origin: 1.875,0,0
+          rotation: 0,0,0,1
           parent: 7e8426f1-08b2-81a2-7703-cb76ff5e7003
         1b5cc202-c09e-faa0-5057-eb4ae60bf336:
           item: player_head[custom_model_data=9]
           name: left_foreleg
-          origin: -1.875,5.625,0
-          rotation: 0,0,0
+          origin: -1.875,0,0
+          rotation: 0,0,0,1
           parent: 5ef5d225-d5ae-6787-8838-b75ccb7a7a81
+        7e8426f1-08b2-81a2-7703-cb76ff5e7003:
+          item: player_head[custom_model_data=9]
+          name: right_leg
+          origin: 1.875,5.6,0
+          rotation: 0,0,0,1
+          parent: 778fa89c-759a-8884-89d9-238c555d2dc1
+        5ef5d225-d5ae-6787-8838-b75ccb7a7a81:
+          item: player_head[custom_model_data=9]
+          name: left_leg
+          origin: -1.875,5.6,0
+          rotation: 0,0,0,1
+          parent: 778fa89c-759a-8884-89d9-238c555d2dc1
 
     slim:
       order:
@@ -231,61 +232,49 @@ pmodel_config:
         9dc65952-10a9-876f-bd47-d6a7e9ec6183:
           item: player_head[custom_model_data=8]
           name: hip
-          origin: 0,11.25,0
-          rotation: 0,0,0
-          parent: 778fa89c-759a-8884-89d9-238c555d2dc1
-        7e8426f1-08b2-81a2-7703-cb76ff5e7003:
-          item: player_head[custom_model_data=9]
-          name: right_leg
-          origin: 1.875,11.25,0
-          rotation: 0,0,0
-          parent: 778fa89c-759a-8884-89d9-238c555d2dc1
-        5ef5d225-d5ae-6787-8838-b75ccb7a7a81:
-          item: player_head[custom_model_data=9]
-          name: left_leg
-          origin: -1.875,11.25,0
+          origin: 0,13.0,-3.7
           rotation: 0,0,0
           parent: 778fa89c-759a-8884-89d9-238c555d2dc1
         e297aef6-7dfd-f100-2e7c-ab113699b922:
           item: player_head[custom_model_data=8]
           name: waist
-          origin: 0,15,0
+          origin: 0,16.7,-3.7
           rotation: 0,0,0
           parent: 9dc65952-10a9-876f-bd47-d6a7e9ec6183
         a0c01522-9040-7533-fa11-f6a45d3d96ac:
           item: player_head[custom_model_data=8]
           name: chest
-          origin: 0,18.75,0
+          origin: 0,20.445,-3.7
           rotation: 0,0,0
           parent: e297aef6-7dfd-f100-2e7c-ab113699b922
         34097e46-c233-c03c-d8b9-aee154c9946f:
           item: player_head[custom_model_data=1]
           name: head
-          origin: 0,22.5,0
+          origin: 0,28,-7.6
           rotation: 0,0,0
           parent: a0c01522-9040-7533-fa11-f6a45d3d96ac
         bfc2f156-b48b-dd08-1b9e-777d8ada16b2:
           item: player_head[custom_model_data=5]
           name: right_arm
-          origin: 4.74,21,0
+          origin: 4.74,20.45,-1.44
           rotation: 0,0,0
           parent: a0c01522-9040-7533-fa11-f6a45d3d96ac
         b3135254-0351-3462-2479-e6a3286c89ff:
           item: player_head[custom_model_data=6]
           name: left_arm
-          origin: -4.74,21,0
+          origin: -4.74,20.45,-1.44
           rotation: 0,0,0
           parent: a0c01522-9040-7533-fa11-f6a45d3d96ac
         cf1618da-24d8-aab8-eebc-128815c02d35:
           item: player_head[custom_model_data=7]
           name: right_forearm
-          origin: 5.15,16.875,0
+          origin: 5.15,14.8,0.0631
           rotation: 0,0,0
           parent: bfc2f156-b48b-dd08-1b9e-777d8ada16b2
         1a9070b5-b8b6-b955-9f31-54f9625f8f3d:
           item: player_head[custom_model_data=7]
           name: left_forearm
-          origin: -5.15,16.875,0
+          origin: -5.15,14.8,0.0631
           rotation: 0,0,0
           parent: b3135254-0351-3462-2479-e6a3286c89ff
         c6d9e946-1d10-482d-14b1-0766027adba8:
@@ -300,6 +289,18 @@ pmodel_config:
           origin: -1.875,5.625,0
           rotation: 0,0,0
           parent: 5ef5d225-d5ae-6787-8838-b75ccb7a7a81
+        7e8426f1-08b2-81a2-7703-cb76ff5e7003:
+          item: player_head[custom_model_data=9]
+          name: right_leg
+          origin: 1.875,11.25,0
+          rotation: 0,0,0
+          parent: 778fa89c-759a-8884-89d9-238c555d2dc1
+        5ef5d225-d5ae-6787-8838-b75ccb7a7a81:
+          item: player_head[custom_model_data=9]
+          name: left_leg
+          origin: -1.875,11.25,0
+          rotation: 0,0,0
+          parent: 778fa89c-759a-8884-89d9-238c555d2dc1
 
 #====================================================================================================
 
@@ -316,7 +317,7 @@ pmodel_base_command:
   description: Main command for Denizen Player Models
   permission: op.op
   script:
-  - if <context.args.get[1]> == reload && <player.is_op> || <context.source_type> == SERVER:
+  - if <context.args.get[1]||null> == reload && <player.is_op> || <context.source_type> == SERVER:
     - if <script[pmodel_config].data_key[config].get[reload_scripts].equals[true]>:
       - reload
     - ~run pmodels_load_bbmodel save:result
