@@ -1,5 +1,3 @@
-# This is required to spawn the player models.
-
 pmodels_skin_type:
     type: procedure
     description: Determines if the player has a classic skin or slim skin
@@ -35,7 +33,7 @@ pmodels_spawn_model:
       - default:
         - debug error "[Denizen Player Models] <red>Something went wrong in pmodels_spawn_model invalid skin type."
         - stop
-    - if !<server.has_flag[pmodels_data.model_<[model_name]>.default]>:
+    - if !<server.has_flag[pmodels_data.model_<[model_name]>]>:
         - debug error "[Denizen Player Models] <red>Cannot spawn model <[model_name]>, model not loaded"
         - stop
     - define center <[location].with_pitch[0].above[0.5]>
@@ -56,13 +54,13 @@ pmodels_spawn_model:
     - flag <[root_entity]> pmodel_yaw:<[center].yaw>
     - flag <[root_entity]> pmodel_skin_type:<[skin_type]>
     - define skull_skin <[player].skull_skin>
-    - foreach <server.flag[pmodels_data.model_<[model_name]>.default]> key:id as:part:
+    - foreach <server.flag[pmodels_data.model_<[model_name]>]> key:id as:part:
         - if !<[part.item].exists>:
             - foreach next
-        #If the part is external skip it and store it as data to use later
-        - else if <[part.type]> == external:
-            - define external_parts.<[id]> <[part]>
-            - foreach next
+        # If the part is external skip it and store it as data to use later
+        #- else if <[part.type]> == external:
+        #    - define external_parts.<[id]> <[part]>
+        #    - foreach next
         - define offset <[orientation].transform[<[part.origin]>]>
         - define pose <[part.rotation]>
         - adjust <item[<[part.item]>]> skull_skin:<[skull_skin]> save:item
@@ -89,8 +87,8 @@ pmodels_spawn_model:
         - flag <[spawned]> pmodel_def_type:default
         - flag <[root_entity]> pmodel_parts:->:<[spawned]>
         - flag <[root_entity]> pmodel_anim_part.<[id]>:->:<[spawned]>
-    - if <[external_parts].exists>:
-      - flag <[root_entity]> external_parts:<[external_parts]>
+    #- if <[external_parts].exists>:
+    #  - flag <[root_entity]> external_parts:<[external_parts]>
     - determine <[root_entity]>
 
 pmodels_reset_model_position:
@@ -99,7 +97,7 @@ pmodels_reset_model_position:
     debug: false
     definitions: root_entity[(EntityTag) - The root entity of the player model]
     script:
-    - define model_data <server.flag[pmodels_data.model_<[root_entity].flag[pmodel_model_id]>.default]||null>
+    - define model_data <server.flag[pmodels_data.model_<[root_entity].flag[pmodel_model_id]>]||null>
     - if <[model_data]> == null:
         - debug error "<&[Error]> Could not update model for root entity <[root_entity]> as it does not exist."
         - stop
@@ -187,28 +185,26 @@ pmodels_change_skin:
     - define skin_type <[player].flag[pmodels_player_skin_type]||<[player].proc[pmodels_skin_type]>>
     - define fake_to <[root_entity].flag[fake_to]||null>
     - define parts <[root_entity].flag[pmodel_parts]||<list>>
-    - define tex_load_order <list[player_root|head|hip|waist|chest|right_arm|right_forearm|left_arm|left_forearm|right_leg|right_foreleg|left_leg|left_foreleg]>
+    - define tex_load_order player_root|head|hip|waist|chest|right_arm|right_forearm|left_arm|left_forearm|right_leg|right_foreleg|left_leg|left_foreleg
     - define global_scale <[root_entity].flag[pmodel_global_scale]>
     - define root_skin_type <[root_entity].flag[pmodel_skin_type]>
-    - foreach <[tex_load_order]> as:bone:
+    - foreach <[tex_load_order]> as:tex_part:
       - foreach <[parts]> as:part:
-        - if <[part].flag[pmodel_def_name]> == <[bone]>:
+        - if <[part].flag[pmodel_def_name]> == <[tex_part]>:
           - define hand_item <[part].item_in_hand>
           # If the root model skin type does not equal the new model skin type change it
           - if <[root_skin_type]> != <[skin_type]>:
             - choose <[skin_type]>:
               - case classic:
                 - foreach <[norm_models]> as:model:
-                  - if <[model.name]> == <[bone]>:
+                  - if <[model.name]> == <[tex_part]>:
                     - define hand_item <item[<[model.item]>]>
-                    - define offset <location[<[model.origin]>].div[16].proc[pmodels_mul_vecs].context[<[global_scale]>]>
-                    - flag <[part]> pmodel_def_offset:<[offset]>
+                    - flag <[part]> pmodel_def_offset: <location[<[model.origin]>].div[16].proc[pmodels_mul_vecs].context[<[global_scale]>]>
               - case slim:
                 - foreach <[slim_models]> as:model:
-                  - if <[model.name]> == <[bone]>:
+                  - if <[model.name]> == <[tex_part]>:
                     - define hand_item <item[<[model.item]>]>
-                    - define offset <location[<[model.origin]>].div[16].proc[pmodels_mul_vecs].context[<[global_scale]>]>
-                    - flag <[part]> pmodel_def_offset:<[offset]>
+                    - flag <[part]> pmodel_def_offset: <location[<[model.origin]>].div[16].proc[pmodels_mul_vecs].context[<[global_scale]>]>
           - adjust <[hand_item]> skull_skin:<[skull_skin]> save:item
           - define item <entry[item].result>
           - if <[fake_to]> != null:
