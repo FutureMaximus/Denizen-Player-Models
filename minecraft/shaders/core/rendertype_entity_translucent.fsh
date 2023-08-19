@@ -21,7 +21,8 @@ in vec3 a, b;
 
 out vec4 fragColor;
 
-vec2 getSize() {
+vec2 getSize() 
+{
     vec2 uv1 = a.xy / a.z;
     vec2 uv2 = b.xy / b.z;
     return round((max(uv1, uv2) - min(uv1, uv2)) * 64);
@@ -29,18 +30,14 @@ vec2 getSize() {
 
 void main() {
 
-    if(texCoord0.x < 0) {
-        discard;
-    }
+    if(texCoord0.x < 0) discard;
 
     vec2 uv = texCoord0;
     if(getSize() != vec2(8, 8))
         uv = texCoord1;
 
     vec4 color = texture(Sampler0, uv);
-    if (color.a < 0.1) {
-        discard;
-    }
+    if (color.a < 0.1) discard;
     color *= vertexColor * ColorModulator;
     color.rgb = mix(overlayColor.rgb, color.rgb, overlayColor.a);
     color *= lightMapColor;
