@@ -227,79 +227,79 @@ pmodel_config:
         778fa89c-759a-8884-89d9-238c555d2dc1:
           name: player_root
           origin: 0,0,0
-          rotation: 0,0,0
+          rotation: 0,0,0,1
           parent: none
         9dc65952-10a9-876f-bd47-d6a7e9ec6183:
           item: player_head[custom_model_data=8]
           name: hip
           origin: 0,13.0,-3.7
-          rotation: 0,0,0
+          rotation: 0,0,0,1
           parent: 778fa89c-759a-8884-89d9-238c555d2dc1
         e297aef6-7dfd-f100-2e7c-ab113699b922:
           item: player_head[custom_model_data=8]
           name: waist
           origin: 0,16.7,-3.7
-          rotation: 0,0,0
+          rotation: 0,0,0,1
           parent: 9dc65952-10a9-876f-bd47-d6a7e9ec6183
         a0c01522-9040-7533-fa11-f6a45d3d96ac:
           item: player_head[custom_model_data=8]
           name: chest
           origin: 0,20.445,-3.7
-          rotation: 0,0,0
+          rotation: 0,0,0,1
           parent: e297aef6-7dfd-f100-2e7c-ab113699b922
         34097e46-c233-c03c-d8b9-aee154c9946f:
           item: player_head[custom_model_data=1]
           name: head
           origin: 0,28,-7.6
-          rotation: 0,0,0
+          rotation: 0,0,0,1
           parent: a0c01522-9040-7533-fa11-f6a45d3d96ac
         bfc2f156-b48b-dd08-1b9e-777d8ada16b2:
           item: player_head[custom_model_data=5]
           name: right_arm
           origin: 4.74,20.45,-1.44
-          rotation: 0,0,0
+          rotation: 0,0,0,1
           parent: a0c01522-9040-7533-fa11-f6a45d3d96ac
         b3135254-0351-3462-2479-e6a3286c89ff:
           item: player_head[custom_model_data=6]
           name: left_arm
           origin: -4.74,20.45,-1.44
-          rotation: 0,0,0
+          rotation: 0,0,0,1
           parent: a0c01522-9040-7533-fa11-f6a45d3d96ac
         cf1618da-24d8-aab8-eebc-128815c02d35:
           item: player_head[custom_model_data=7]
           name: right_forearm
           origin: 5.15,14.8,0.0631
-          rotation: 0,0,0
+          rotation: 0,0,0,1
           parent: bfc2f156-b48b-dd08-1b9e-777d8ada16b2
         1a9070b5-b8b6-b955-9f31-54f9625f8f3d:
           item: player_head[custom_model_data=7]
           name: left_forearm
           origin: -5.15,14.8,0.0631
-          rotation: 0,0,0
+          rotation: 0,0,0,1
           parent: b3135254-0351-3462-2479-e6a3286c89ff
         c6d9e946-1d10-482d-14b1-0766027adba8:
           item: player_head[custom_model_data=9]
           name: right_foreleg
           origin: 1.875,5.625,0
-          rotation: 0,0,0
+          rotation: 0,0,0,1
           parent: 7e8426f1-08b2-81a2-7703-cb76ff5e7003
         1b5cc202-c09e-faa0-5057-eb4ae60bf336:
           item: player_head[custom_model_data=9]
           name: left_foreleg
           origin: -1.875,5.625,0
-          rotation: 0,0,0
+          rotation: 0,0,0,1
           parent: 5ef5d225-d5ae-6787-8838-b75ccb7a7a81
         7e8426f1-08b2-81a2-7703-cb76ff5e7003:
           item: player_head[custom_model_data=9]
           name: right_leg
           origin: 1.875,11.25,0
-          rotation: 0,0,0
+          rotation: 0,0,0,1
           parent: 778fa89c-759a-8884-89d9-238c555d2dc1
         5ef5d225-d5ae-6787-8838-b75ccb7a7a81:
           item: player_head[custom_model_data=9]
           name: left_leg
           origin: -1.875,11.25,0
-          rotation: 0,0,0
+          rotation: 0,0,0,1
           parent: 778fa89c-759a-8884-89d9-238c555d2dc1
 
 #====================================================================================================
